@@ -1,14 +1,25 @@
 CUR_DIR = $(shell pwd)
 
 %.statbin:
-	GOPATH=$(CUR_DIR) go build -v -o $(CUR_DIR)/bin/$(NAME) $(subst .statbin,,$@)
+	@ ( \
+		echo "Building up..."; \
+		GOPATH=$(CUR_DIR) go build -o $(CUR_DIR)/bin/$(NAME) $(subst .statbin,,$@); \
+		echo "Done."; \
+	);
 
 clean:
-	test ! -d $(CUR_DIR)/pkg || rm -rvf $(CUR_DIR)/pkg; \
-	test ! -d $(CUR_DIR)/bin || rm -rvf $(CUR_DIR)/bin
+	@ ( \
+		echo "Cleaning up..."; \
+		test ! -d $(CUR_DIR)/pkg || rm -rf $(CUR_DIR)/pkg; \
+		test ! -d $(CUR_DIR)/bin || rm -rf $(CUR_DIR)/bin; \
+		echo "Done."; \
+	);
 
 %.dependency:
 	@ ( \
+		if [ ! -d $(CUR_DIR)/src/$(subst .dependency,,$@) ]; then \
+			echo "Fetching $(subst .dependency,,$@) dependency"; \
+		fi; \
 		GOPATH=$(CUR_DIR)/ go get $(subst .dependency,,$@) || exit 1; \
 	);
 

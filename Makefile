@@ -30,7 +30,9 @@ dependencies: $(_CHECK_DEPENDENCIES)
 compliant: $(_CHECK_COMPLIANCE)
 
 install: $(BINS)
-	test -d $(DESTDIR)/usr/local/bin || install -D -d -m 00755 $(DESTDIR)/usr/local/bin; \
-	install -m 00755 bin/* $(DESTDIR)/usr/local/bin/; \
+	@ ( \
+		test -d $(DESTDIR)/usr/local/bin || install -D -d -m 00755 $(DESTDIR)/usr/local/bin; \
+		install -m 00755 bin/* $(DESTDIR)/usr/local/bin/; \
+	);
 
 all: dependencies $(BINS)
