@@ -82,7 +82,7 @@ sudo make install
 # to download your music library
 spotitube -folder ~/Music
 # to download a specific - public - playlist
-spotitube -folder ~/Music -playlist spotify:user:spotify:playlist:37i9dQZF1DWSQScAbo5nGF
+spotitube -folder ~/Music -playlist spotify:user:$USERNAME:playlist:$PLAYLIST_ID
 ```
 
 #### Additional flags
