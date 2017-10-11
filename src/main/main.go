@@ -165,12 +165,18 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	if (track.Local && *arg_flush_metadata) || !track.Local {
-		os.Remove(track.FilenameArtwork())
-		err := Wget(track.URL, track.FilenameArtwork())
-		if err != nil {
-			logger.Warn("Something wrong while downloading artwork file: " + err.Error())
+		track_artwork_file, track_artwork_err := os.Create(track.FilenameArtwork())
+		if track_artwork_err != nil {
+			logger.Warn("Something wrong while creating artwork file: " + track_artwork_err.Error())
+		}
+		track_artwork_writer := bufio.NewWriter(track_artwork_file)
+		track_artwork_err = Wget(track.Image, track_artwork_writer)
+		track_artwork_reader, track_artwork_err := ioutil.ReadFile(track.FilenameArtwork())
+		if track_artwork_err != nil {
+			logger.Warn("Unable to read artwork file: " + track_artwork_err.Error())
 		}
 		defer os.Remove(track.FilenameArtwork())
+		defer track_artwork_file.Close()
 
 		track_mp3, err := id3.Open(track.FilenameTemporary(), id3.Options{Parse: true})
 		if track_mp3 == nil || err != nil {
@@ -180,17 +186,15 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 			track_mp3.SetTitle(track.Title)
 			track_mp3.SetArtist(track.Artist)
 			track_mp3.SetAlbum(track.Album)
-			_, err := ioutil.ReadFile(track.FilenameArtwork())
-			if err != nil {
-				logger.Warn("Unable to read artwork file: " + err.Error())
+			if track_artwork_err == nil {
+				track_mp3.AddAttachedPicture(id3.PictureFrame{
+					Encoding:    id3.EncodingUTF8,
+					MimeType:    "image/jpeg",
+					PictureType: id3.PTFrontCover,
+					Description: "Front cover",
+					Picture:     track_artwork_reader,
+				})
 			}
-			// track_mp3.AddAttachedPicture(id3.PictureFrame{
-			// 	Encoding:    id3.EncodingUTF8,
-			// 	MimeType:    "image/jpeg",
-			// 	PictureType: id3.PTFrontCover,
-			// 	Description: "Front cover",
-			// 	Picture:     track_artwork_read,
-			// })
 			if len(track.URL) > 0 {
 				track_mp3.AddCommentFrame(id3.CommentFrame{
 					Encoding:    id3.EncodingUTF8,
