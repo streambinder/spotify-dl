@@ -39,7 +39,7 @@ const (
 <html>
 <head>
     <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">
-    <title>Spotify DL</title>
+    <title>SpotiTube</title>
     <link rel="icon" href="` + SPOTIFY_FAVICON_URL + `" type="image/x-icon" />
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto+Condensed" />
