@@ -99,5 +99,5 @@ You may want to use some of the following input flags:
 For developers, maybe two additional flags could be really useful to simplify the troubleshooting and bugfixing process:
 
 1. `-log` will append every output line of the application to a logfile, located inside the `-folder` the music is getting synchronized in.
-2. `-debug` will show additional and detailed messages about the flow the brought the code to choose a song, instead of another, for example. Also, this flag will disable parallelism, in order to have a clearer and more ordered output.
+2. `-debug` will show additional and detailed messages about the flow that brought the code to choose a song, instead of another, for example. Also, this flag will disable parallelism, in order to have a clearer and more ordered output.
 3. `-simulate` will make the process flow till the download step, without proceeding on its way. It's useful to check if searching for results and filtering steps are doing their job.
