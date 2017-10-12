@@ -99,6 +99,10 @@ func (spotify *Spotify) Playlist(playlist_uri string) []api.FullTrack {
 	return tracks
 }
 
+func (spotify *Spotify) Album(id api.ID) (*api.FullAlbum, error) {
+	return spotify.Client.GetAlbum(id)
+}
+
 func (spotify *Spotify) DefaultOptions() api.Options {
 	var opt_limit int = 50
 	var opt_offset int = 0

@@ -78,7 +78,12 @@ func main() {
 
 	logger.Log("Checking which songs need to be downloaded.")
 	for _, track := range tracks_online {
-		tracks = append(tracks, ParseSpotifyTrack(track))
+		track_album, err := spotify_client.Album(track.Album.ID)
+		if err != nil {
+			logger.Warn("Unable to get album informations.")
+		} else {
+			tracks = append(tracks, ParseSpotifyTrack(track, *track_album))
+		}
 	}
 
 	ch := make(chan os.Signal, 1)
@@ -189,6 +194,7 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 			track_mp3.SetTitle(track.Title)
 			track_mp3.SetArtist(track.Artist)
 			track_mp3.SetAlbum(track.Album)
+			track_mp3.SetYear(track.Year)
 			if track_artwork_err == nil {
 				track_mp3.AddAttachedPicture(id3.PictureFrame{
 					Encoding:    id3.EncodingUTF8,

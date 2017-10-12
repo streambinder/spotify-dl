@@ -23,6 +23,7 @@ type Track struct {
 	Song          string
 	Artist        string
 	Album         string
+	Year          string
 	Featurings    []string
 	Duration      int
 	SongType      int
@@ -60,11 +61,19 @@ func (tracks Tracks) CountOnline() int {
 	return counter
 }
 
-func ParseSpotifyTrack(spotify_track spotify.FullTrack) Track {
+func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.FullAlbum) Track {
 	track := Track{
 		Title:  spotify_track.SimpleTrack.Name,
 		Artist: (spotify_track.SimpleTrack.Artists[0]).Name,
 		Album:  spotify_track.Album.Name,
+		Year: func() string {
+			if spotify_album.ReleaseDatePrecision == "year" {
+				return spotify_album.ReleaseDate
+			} else if strings.Contains(spotify_album.ReleaseDate, "-") {
+				return strings.Split(spotify_album.ReleaseDate, "-")[0]
+			}
+			return "0000"
+		}(),
 		Featurings: func() []string {
 			var featurings []string
 			if len(spotify_track.SimpleTrack.Artists) > 1 {
