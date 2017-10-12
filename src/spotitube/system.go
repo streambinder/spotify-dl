@@ -1,12 +1,8 @@
 package spotitube
 
 import (
-	"errors"
-	"io"
 	"math/rand"
-	"net/http"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -60,20 +56,6 @@ func RandString(n int) string {
 	}
 
 	return string(b)
-}
-
-func Wget(url string, path io.Writer) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return errors.New("Couldn't download image: HTTP" + strconv.Itoa(resp.StatusCode))
-	}
-	_, err = io.Copy(path, resp.Body)
-	return err
 }
 
 func FileExists(path string) bool {

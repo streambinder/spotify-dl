@@ -165,24 +165,27 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	if (track.Local && *arg_flush_metadata) || !track.Local {
-		track_artwork_file, track_artwork_err := os.Create(track.FilenameArtwork())
-		if track_artwork_err != nil {
-			logger.Warn("Something wrong while creating artwork file: " + track_artwork_err.Error())
+		if FileExists(track.FilenameArtwork()) {
+			os.Remove(track.FilenameArtwork())
 		}
-		track_artwork_writer := bufio.NewWriter(track_artwork_file)
-		track_artwork_err = Wget(track.Image, track_artwork_writer)
+		command_cmd := "ffmpeg"
+		command_args := []string{"-i", track.Image, "-q:v", "1", track.FilenameArtwork()}
+		_, track_artwork_err := exec.Command(command_cmd, command_args...).Output()
+		if track_artwork_err != nil {
+			logger.Warn("Unable to download artwork file:" + track_artwork_err.Error())
+		}
 		track_artwork_reader, track_artwork_err := ioutil.ReadFile(track.FilenameArtwork())
 		if track_artwork_err != nil {
 			logger.Warn("Unable to read artwork file: " + track_artwork_err.Error())
 		}
 		defer os.Remove(track.FilenameArtwork())
-		defer track_artwork_file.Close()
 
 		track_mp3, err := id3.Open(track.FilenameTemporary(), id3.Options{Parse: true})
 		if track_mp3 == nil || err != nil {
 			logger.Fatal("Something bad happened while opening: " + err.Error())
 		} else {
 			logger.Log("Fixing metadata for: " + track.Filename + ".")
+			track_mp3.DeleteAllFrames()
 			track_mp3.SetTitle(track.Title)
 			track_mp3.SetArtist(track.Artist)
 			track_mp3.SetAlbum(track.Album)
