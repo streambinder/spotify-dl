@@ -119,9 +119,11 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 	if len(track.Featurings) > 0 {
 		if strings.Contains(strings.ToLower(track.Title), "feat. ") ||
 			strings.Contains(strings.ToLower(track.Title), "ft. ") ||
-			strings.Contains(strings.ToLower(track.Title), "featuring ") {
+			strings.Contains(strings.ToLower(track.Title), "featuring ") ||
+			strings.Contains(strings.ToLower(track.Title), "with ") {
 			track.Title = strings.Replace(track.Title, "feat. ", "ft. ", -1)
 			track.Title = strings.Replace(strings.Replace(track.Title, "Featuring ", "ft. ", -1), "featuring ", "ft. ", -1)
+			track.Title = strings.Replace(strings.Replace(track.Title, "With ", "ft. ", -1), "with ", "ft. ", -1)
 		} else {
 			var track_featurings string
 			if len(track.Featurings) > 1 {
