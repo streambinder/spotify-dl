@@ -194,6 +194,9 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 			track_mp3.SetTitle(track.Title)
 			track_mp3.SetArtist(track.Artist)
 			track_mp3.SetAlbum(track.Album)
+			track_mp3.SetGenre(track.Genre)
+			track_mp3.AddFrame(track_mp3.CommonID("Track number/Position in set"),
+				id3.TextFrame{Encoding: id3.EncodingUTF8, Text: strconv.Itoa(track.TrackNumber)})
 			track_mp3.SetYear(track.Year)
 			if track_artwork_err == nil {
 				track_mp3.AddAttachedPicture(id3.PictureFrame{
@@ -208,7 +211,7 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 				track_mp3.AddCommentFrame(id3.CommentFrame{
 					Encoding:    id3.EncodingUTF8,
 					Language:    "eng",
-					Description: "YouTubeURL",
+					Description: "youtube",
 					Text:        track.URL,
 				})
 			}

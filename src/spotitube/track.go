@@ -25,6 +25,9 @@ type Track struct {
 	Album         string
 	Year          string
 	Featurings    []string
+	Genre         string
+	TrackNumber   int
+	TrackTotals   int
 	Duration      int
 	SongType      int
 	Image         string
@@ -83,6 +86,14 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 			}
 			return featurings
 		}(),
+		Genre: func() string {
+			if len(spotify_album.Genres) > 0 {
+				return spotify_album.Genres[0]
+			}
+			return ""
+		}(),
+		TrackNumber:   spotify_track.SimpleTrack.TrackNumber,
+		TrackTotals:   len(spotify_album.Tracks.Tracks),
 		Duration:      spotify_track.SimpleTrack.Duration / 1000,
 		Image:         spotify_track.Album.Images[0].URL,
 		URL:           "",
@@ -147,7 +158,7 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 	}
 
 	if track.Local {
-		track.URL = track.ReadFrame("YouTubeURL")
+		track.URL = track.ReadFrame("youtube")
 	}
 
 	return track
@@ -224,9 +235,7 @@ func (track Track) ReadFrame(name string) string {
 		if !ok {
 			return ""
 		}
-		if comment.Description == "YouTubeURL" {
-			return comment.Text
-		}
+		return comment.Text
 	}
 
 	return ""
