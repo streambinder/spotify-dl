@@ -42,6 +42,13 @@ var (
 )
 
 func main() {
+	for _, command_name := range []string{"youtube-dl", "ffmpeg"} {
+		_, err := exec.LookPath(command_name)
+		if err != nil {
+			logger.Fatal("Are you sure " + command_name + " is actually installed?")
+		}
+	}
+
 	arg_folder = flag.String("folder", ".", "Folder to sync with music.")
 	arg_playlist = flag.String("playlist", "none", "Playlist URI to synchronize.")
 	arg_replace_local = flag.Bool("replace-local", false, "Replace local library songs if better results get encountered")
