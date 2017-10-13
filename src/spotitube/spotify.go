@@ -99,8 +99,28 @@ func (spotify *Spotify) Playlist(playlist_uri string) []api.FullTrack {
 	return tracks
 }
 
-func (spotify *Spotify) Album(id api.ID) (*api.FullAlbum, error) {
-	return spotify.Client.GetAlbum(id)
+func (spotify *Spotify) Albums(ids []api.ID) []api.FullAlbum {
+	var albums []api.FullAlbum
+	var iterations int = 0
+	var upperbound, lowerbound int
+	for true {
+		lowerbound = iterations * 20
+		if upperbound = lowerbound + 20; upperbound >= len(ids) {
+			upperbound = lowerbound + (len(ids) - lowerbound)
+		}
+		chunk, err := spotify.Client.GetAlbums(ids[lowerbound:upperbound]...)
+		if err != nil {
+			logger.Fatal("Something gone wrong while reading " + strconv.Itoa(iterations) + "th chunk of albums: " + err.Error() + ".")
+		}
+		for _, album := range chunk {
+			albums = append(albums, *album)
+		}
+		if len(chunk) < 20 {
+			break
+		}
+		iterations++
+	}
+	return albums
 }
 
 func (spotify *Spotify) DefaultOptions() api.Options {

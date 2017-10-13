@@ -78,21 +78,24 @@ func main() {
 		logger.Fatal("Unable to authenticate to spotify.")
 	}
 
-	var tracks_online []api.FullTrack
+	var (
+		tracks_online            []api.FullTrack
+		tracks_online_albums     []api.FullAlbum
+		tracks_online_albums_ids []api.ID
+	)
 	if *arg_playlist == "none" {
 		tracks_online = spotify_client.Library()
 	} else {
 		tracks_online = spotify_client.Playlist(*arg_playlist)
 	}
+	for _, track := range tracks_online {
+		tracks_online_albums_ids = append(tracks_online_albums_ids, track.Album.ID)
+	}
+	tracks_online_albums = spotify_client.Albums(tracks_online_albums_ids)
 
 	logger.Log("Checking which songs need to be downloaded.")
-	for _, track := range tracks_online {
-		track_album, err := spotify_client.Album(track.Album.ID)
-		if err != nil {
-			logger.Warn("Unable to get album informations.")
-		} else {
-			tracks = append(tracks, ParseSpotifyTrack(track, *track_album))
-		}
+	for track_index := len(tracks_online) - 1; track_index >= 0; track_index-- {
+		tracks = append(tracks, ParseSpotifyTrack(tracks_online[track_index], tracks_online_albums[track_index]))
 	}
 
 	ch := make(chan os.Signal, 1)
