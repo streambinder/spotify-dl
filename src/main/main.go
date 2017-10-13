@@ -267,7 +267,7 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 		command_err = command_obj.Run()
 		if command_err != nil {
 			logger.Warn("Unable to use ffmpeg to pull max_volume song value: " + command_out.String() + ".")
-			normalization_delta = "0"
+			normalization_delta = "0.0"
 		} else {
 			command_scanner := bufio.NewScanner(strings.NewReader(command_out.String()))
 			for command_scanner.Scan() {
@@ -280,10 +280,11 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 
 		if _, command_err = strconv.ParseFloat(normalization_delta, 64); command_err != nil {
 			logger.Warn("Unable to pull max_volume delta to be applied along with song volume normalization: " + normalization_delta + ".")
-			normalization_delta = "0"
+			normalization_delta = "0.0"
 		}
 		command_args = []string{"-i", track.FilenameTemporary(), "-af", "volume=+" + normalization_delta + "dB", "-b:a", "320k", "-y", normalization_file}
-		logger.Log("Normalizing volume by " + normalization_delta + "dB for: " + track.Filename + ".")
+		logger.Debug("Going to compensate volume by " + normalization_delta + "dB")
+		logger.Log("Increasing audio quality for: " + track.Filename + ".")
 		logger.Debug("Using command: \"" + command_cmd + " " + strings.Join(command_args, " ") + "\"")
 		if _, command_err = exec.Command(command_cmd, command_args...).Output(); command_err != nil {
 			logger.Warn("Something went wrong while normalizing song \"" + track.Filename + "\" volume: " + command_err.Error())
