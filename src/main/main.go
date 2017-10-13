@@ -206,7 +206,7 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 		command_args := []string{"-i", track.Image, "-q:v", "1", track.FilenameArtwork()}
 		_, track_artwork_err := exec.Command(command_cmd, command_args...).Output()
 		if track_artwork_err != nil {
-			logger.Warn("Unable to download artwork file:" + track_artwork_err.Error())
+			logger.Warn("Unable to download artwork file: " + track_artwork_err.Error())
 		}
 		track_artwork_reader, track_artwork_err := ioutil.ReadFile(track.FilenameArtwork())
 		if track_artwork_err != nil {
