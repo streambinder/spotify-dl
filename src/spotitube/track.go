@@ -16,7 +16,11 @@ const (
 	SongTypeRemix    = iota
 	SongTypeAcoustic = iota
 	SongTypeKaraoke  = iota
+	SongTypeParody   = iota
 )
+
+var SongTypes []int = []int{SongTypeLive, SongTypeCover, SongTypeRemix,
+	SongTypeAcoustic, SongTypeKaraoke, SongTypeParody}
 
 type Track struct {
 	Title         string
@@ -105,9 +109,10 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 	}
 
 	track.SongType = SongTypeAlbum
-	for song_type := range []int{SongTypeLive, SongTypeCover, SongTypeRemix, SongTypeAcoustic, SongTypeKaraoke} {
+	for song_type := range SongTypes {
 		if SeemsType(track.Title, song_type) {
 			track.SongType = song_type
+			break
 		}
 	}
 
@@ -194,7 +199,7 @@ func (track Track) Seems(sequence string) bool {
 		return false
 	}
 
-	for song_type := range []int{SongTypeLive, SongTypeCover, SongTypeRemix, SongTypeAcoustic, SongTypeKaraoke} {
+	for _, song_type := range SongTypes {
 		if SeemsType(sequence, song_type) && track.SongType != song_type {
 			return false
 		}
@@ -258,6 +263,8 @@ func SeemsType(sequence string, song_type int) bool {
 		song_type_aliases = []string{"acoustic"}
 	} else if song_type == SongTypeKaraoke {
 		song_type_aliases = []string{"karaoke"}
+	} else if song_type == SongTypeParody {
+		song_type_aliases = []string{"parody"}
 	}
 
 	for _, song_type_alias := range song_type_aliases {
