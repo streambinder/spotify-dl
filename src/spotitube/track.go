@@ -113,7 +113,7 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 	}
 
 	track.SongType = SongTypeAlbum
-	for song_type := range SongTypes {
+	for _, song_type := range SongTypes {
 		if SeemsType(track.Title, song_type) {
 			track.SongType = song_type
 			break
