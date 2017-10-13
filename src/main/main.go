@@ -172,6 +172,8 @@ func main() {
 		}
 		wait_group.Wait()
 
+		CleanJunks()
+
 		if len(tracks_failed) > 0 {
 			logger.Log("Synchronization partially completed, " + strconv.Itoa(len(tracks_failed)) + " tracks failed to synchronize:")
 			for _, track := range tracks_failed {
