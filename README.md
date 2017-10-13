@@ -93,6 +93,7 @@ You may want to use some of the following input flags:
 2. `-interactive`: enable interactive mode. This allows to eventually override `spotitube` decisions about which _YouTube_ result to pick, prompting for user input on every - legal - song it encounters.
 3. `-flush-metadata`: enable metadata informations flush also for songs that have been already synchronized.
 4. `-replace-local`: replace already downloaded (via `spotitube`) songs, if better ones get encountered.
+5. `-clean-junks`: forcely batch remove temporary files that kept existing for any unattended runtime error.
 
 #### Developers
 

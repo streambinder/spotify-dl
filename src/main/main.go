@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,6 +27,7 @@ var (
 	arg_flush_metadata        *bool
 	arg_disable_normalization *bool
 	arg_interactive           *bool
+	arg_clean_junks           *bool
 	arg_log                   *bool
 	arg_debug                 *bool
 	arg_simulate              *bool
@@ -46,6 +48,7 @@ func main() {
 	arg_flush_metadata = flag.Bool("flush-metadata", false, "Flush metadata informations to already synchronized songs")
 	arg_disable_normalization = flag.Bool("disable-normalization", false, "Disable songs volume normalization")
 	arg_interactive = flag.Bool("interactive", false, "Enable interactive mode")
+	arg_clean_junks = flag.Bool("clean-junks", false, "Scan for junks file and clean them")
 	arg_log = flag.Bool("log", false, "Enable logging into file ./spotitube.log")
 	arg_debug = flag.Bool("debug", false, "Enable debug messages")
 	arg_simulate = flag.Bool("simulate", false, "Simulate process flow, without really altering filesystem")
@@ -66,7 +69,10 @@ func main() {
 		logger.Log("Synchronization folder: " + *arg_folder)
 	}
 
-	youtube_client.SetInteractive(*arg_interactive)
+	if *arg_clean_junks {
+		CleanJunks()
+		return
+	}
 
 	if !spotify_client.Auth() {
 		logger.Fatal("Unable to authenticate to spotify.")
@@ -103,6 +109,7 @@ func main() {
 	}()
 
 	if len(tracks) > 0 {
+		youtube_client.SetInteractive(*arg_interactive)
 		if *arg_replace_local {
 			logger.Log(strconv.Itoa(len(tracks)) + " missing songs.")
 		} else {
@@ -273,4 +280,23 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 		os.Rename(normalization_file, track.FilenameTemporary())
 	}
 	os.Rename(track.FilenameTemporary(), track.FilenameFinal())
+}
+
+func CleanJunks() {
+	logger.Log("Cleaning up junks")
+	var removed_junks int
+	for _, junk_type := range JunkWildcards {
+		junk_paths, err := filepath.Glob(junk_type)
+		if err != nil {
+			logger.Warn("Something wrong while searching for \"" + junk_type + "\" junk files: " + err.Error())
+			continue
+		}
+		for _, junk_path := range junk_paths {
+			logger.Debug("Removing " + junk_path + "...")
+			os.Remove(junk_path)
+			removed_junks++
+		}
+	}
+	logger.Log("Removed " + strconv.Itoa(removed_junks) + " files.")
+	return
 }

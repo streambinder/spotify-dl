@@ -19,8 +19,12 @@ const (
 	SongTypeParody   = iota
 )
 
-var SongTypes []int = []int{SongTypeLive, SongTypeCover, SongTypeRemix,
-	SongTypeAcoustic, SongTypeKaraoke, SongTypeParody}
+var (
+	SongTypes []int = []int{SongTypeLive, SongTypeCover, SongTypeRemix,
+		SongTypeAcoustic, SongTypeKaraoke, SongTypeParody}
+	JunkWildcards []string = []string{".*.ytdl", ".*.part", ".*.jpg",
+		".*" + DEFAULT_EXTENSION, ".*" + DEFAULT_EXTENSION + "-id3v2"}
+)
 
 type Track struct {
 	Title         string
@@ -186,6 +190,7 @@ func (track Track) FilenameArtwork() string {
 func (track Track) TempFiles() []string {
 	return []string{track.FilenameTemp,
 		track.FilenameTemporary(),
+		track.FilenameTemporary() + "-id3v2",
 		track.FilenameTemp + ".part",
 		track.FilenameTemp + ".part*",
 		track.FilenameTemp + ".ytdl",
