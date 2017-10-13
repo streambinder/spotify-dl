@@ -3,6 +3,7 @@ package spotitube
 import (
 	"math/rand"
 	"os"
+	"syscall"
 	"time"
 )
 
@@ -61,4 +62,11 @@ func RandString(n int) string {
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
+}
+
+func SyscallLimit(limit *syscall.Rlimit) error {
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, limit); err != nil {
+		return err
+	}
+	return nil
 }

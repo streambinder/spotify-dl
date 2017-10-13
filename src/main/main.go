@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 
 	id3 "github.com/bogem/id3v2"
 	api "github.com/zmb3/spotify"
@@ -28,12 +30,13 @@ var (
 	arg_debug                 *bool
 	arg_simulate              *bool
 
-	tracks         Tracks
-	tracks_failed  Tracks
-	youtube_client *YouTube = NewYouTubeClient()
-	spotify_client *Spotify = NewSpotifyClient()
-	logger         *Logger  = NewLogger()
-	wait_group     sync.WaitGroup
+	tracks           Tracks
+	tracks_failed    Tracks
+	youtube_client   *YouTube = NewYouTubeClient()
+	spotify_client   *Spotify = NewSpotifyClient()
+	logger           *Logger  = NewLogger()
+	wait_group       sync.WaitGroup
+	wait_group_limit syscall.Rlimit
 )
 
 func main() {
@@ -144,6 +147,13 @@ func main() {
 					track.FilenameTemporary())
 			}
 
+			for true {
+				err := SyscallLimit(&wait_group_limit)
+				if err == nil && wait_group_limit.Cur < (wait_group_limit.Max-10) {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
 			wait_group.Add(1)
 			go ParallelSongProcess(track, &wait_group)
 			if *arg_debug {
