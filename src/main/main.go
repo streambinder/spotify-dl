@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -102,7 +103,12 @@ func main() {
 
 	logger.Log("Checking which songs need to be downloaded.")
 	for track_index := len(tracks_online) - 1; track_index >= 0; track_index-- {
-		tracks = append(tracks, ParseSpotifyTrack(tracks_online[track_index], tracks_online_albums[track_index]))
+		track := ParseSpotifyTrack(tracks_online[track_index], tracks_online_albums[track_index])
+		if !tracks.Has(track) {
+			tracks = append(tracks, track)
+		} else {
+			logger.Warn("Ignored song duplicate \"" + track.Filename + "\".")
+		}
 	}
 
 	ch := make(chan os.Signal, 1)
@@ -122,12 +128,16 @@ func main() {
 		youtube_client.SetInteractive(*arg_interactive)
 		if *arg_replace_local {
 			logger.Log(strconv.Itoa(len(tracks)) + " missing songs.")
+		} else if *arg_flush_metadata {
+			logger.Log(strconv.Itoa(tracks.CountOnline()) + " missing songs, " +
+				"flushing metadata for " + strconv.Itoa(tracks.CountOffline()) + " local ones.")
 		} else {
-			logger.Log(strconv.Itoa(tracks.CountOnline()) + " missing songs, " + strconv.Itoa(tracks.CountOffline()) + " ignored.")
+			logger.Log(strconv.Itoa(tracks.CountOnline()) + " missing songs, " +
+				strconv.Itoa(tracks.CountOffline()) + " ignored.")
 		}
 		for track_index, track := range tracks {
 			logger.Log(strconv.Itoa(track_index+1) + "/" + strconv.Itoa(len(tracks)) + ": \"" + track.Filename + "\"")
-			if !track.Local || *arg_replace_local {
+			if !track.Local || *arg_replace_local || *arg_simulate {
 				youtube_track, err := youtube_client.FindTrack(track)
 				if err != nil {
 					logger.Warn("Something went wrong while searching for \"" + track.Filename + "\" track: " + err.Error() + ".")
@@ -159,18 +169,17 @@ func main() {
 
 			if track.Local && !*arg_flush_metadata && !*arg_replace_local {
 				continue
-			} else if track.Local && *arg_flush_metadata {
-				os.Rename(track.FilenameFinal(),
-					track.FilenameTemporary())
 			}
 
 			for true {
 				err := SyscallLimit(&wait_group_limit)
-				if err == nil && wait_group_limit.Cur < (wait_group_limit.Max-10) {
+				if err == nil && wait_group_limit.Cur < (wait_group_limit.Max-50) {
 					break
 				}
+				logger.Warn(fmt.Sprintf("%d < %d-10", wait_group_limit.Cur, wait_group_limit.Max))
 				time.Sleep(100 * time.Millisecond)
 			}
+
 			wait_group.Add(1)
 			go ParallelSongProcess(track, &wait_group)
 			if *arg_debug {
@@ -198,21 +207,37 @@ func main() {
 func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	if !FileExists(track.FilenameTemporary()) && FileExists(track.FilenameFinal()) {
+		err := os.Rename(track.FilenameFinal(),
+			track.FilenameTemporary())
+		if err != nil {
+			logger.Warn("Unable to prepare song for getting its metadata flushed: " + err.Error())
+			return
+		}
+	}
+
 	if (track.Local && *arg_flush_metadata) || !track.Local {
-		if FileExists(track.FilenameArtwork()) {
-			os.Remove(track.FilenameArtwork())
+		var (
+			command_cmd          string   = "ffmpeg"
+			command_args         []string = []string{"-i", track.Image, "-q:v", "1", track.FilenameArtwork()}
+			track_artwork_err    error
+			track_artwork_reader []byte
+		)
+		if !FileExists(track.FilenameArtwork()) {
+			_, track_artwork_err = exec.Command(command_cmd, command_args...).Output()
+			if track_artwork_err != nil {
+				logger.Warn("Unable to download artwork file \"" + track.Image + "\": " + track_artwork_err.Error())
+			}
+		} else {
+			track_artwork_err = nil
+			logger.Debug("Reusing already download album \"" + track.Album + "\" artwork")
 		}
-		command_cmd := "ffmpeg"
-		command_args := []string{"-i", track.Image, "-q:v", "1", track.FilenameArtwork()}
-		_, track_artwork_err := exec.Command(command_cmd, command_args...).Output()
-		if track_artwork_err != nil {
-			logger.Warn("Unable to download artwork file: " + track_artwork_err.Error())
+		if track_artwork_err == nil {
+			track_artwork_reader, track_artwork_err = ioutil.ReadFile(track.FilenameArtwork())
+			if track_artwork_err != nil {
+				logger.Warn("Unable to read artwork file: " + track_artwork_err.Error())
+			}
 		}
-		track_artwork_reader, track_artwork_err := ioutil.ReadFile(track.FilenameArtwork())
-		if track_artwork_err != nil {
-			logger.Warn("Unable to read artwork file: " + track_artwork_err.Error())
-		}
-		defer os.Remove(track.FilenameArtwork())
 
 		track_mp3, err := id3.Open(track.FilenameTemporary(), id3.Options{Parse: true})
 		if track_mp3 == nil || err != nil {
@@ -292,7 +317,11 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 		os.Remove(track.FilenameTemporary())
 		os.Rename(normalization_file, track.FilenameTemporary())
 	}
-	os.Rename(track.FilenameTemporary(), track.FilenameFinal())
+
+	err := os.Rename(track.FilenameTemporary(), track.FilenameFinal())
+	if err != nil {
+		logger.Warn("Unable to move song to its final path: " + err.Error())
+	}
 }
 
 func CleanJunks() {
@@ -311,5 +340,4 @@ func CleanJunks() {
 		}
 	}
 	logger.Log("Removed " + strconv.Itoa(removed_junks) + " files.")
-	return
 }
