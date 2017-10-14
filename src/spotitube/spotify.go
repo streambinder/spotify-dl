@@ -110,7 +110,7 @@ func (spotify *Spotify) Albums(ids []api.ID) []api.FullAlbum {
 		}
 		chunk, err := spotify.Client.GetAlbums(ids[lowerbound:upperbound]...)
 		if err != nil {
-			logger.Fatal("Something gone wrong while reading " + strconv.Itoa(iterations) + "th chunk of albums: " + err.Error() + ".")
+			logger.Warn("Something gone wrong in " + strconv.Itoa(iterations) + "th chunk of albums: " + err.Error() + ".")
 		}
 		for _, album := range chunk {
 			albums = append(albums, *album)
