@@ -3,8 +3,7 @@ CUR_DIR = $(shell pwd)
 %.statbin:
 	@ ( \
 		echo "Building up..."; \
-		GOPATH=$(CUR_DIR) go build -o $(CUR_DIR)/bin/$(NAME) $(subst .statbin,,$@); \
-		echo "Done."; \
+		GOPATH=$(CUR_DIR) go build -o $(CUR_DIR)/bin/$(NAME) $(subst .statbin,,$@) && echo "Done."; \
 	);
 
 clean:
