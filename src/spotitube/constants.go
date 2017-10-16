@@ -13,6 +13,7 @@ const (
 
 	DEFAULT_EXTENSION = ".mp3"
 	DEFAULT_LOG_PATH  = "spotitube.log"
+	DEFAULT_TCP_CHECK = "github.com:443"
 
 	SYSTEM_LETTER_BYTES    = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	SYSTEM_LETTER_IDX_BITS = 6

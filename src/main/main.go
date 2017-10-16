@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -48,6 +49,11 @@ func main() {
 		if err != nil {
 			logger.Fatal("Are you sure " + command_name + " is actually installed?")
 		}
+	}
+
+	_, err := net.Dial("tcp", DEFAULT_TCP_CHECK)
+	if err != nil {
+		logger.Fatal("Are you sure you're connected to the internet?")
 	}
 
 	arg_folder = flag.String("folder", ".", "Folder to sync with music.")
