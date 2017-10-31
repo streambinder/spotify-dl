@@ -39,9 +39,9 @@ func (youtube *YouTube) SetInteractive(set_interactive bool) {
 func (youtube *YouTube) FindTrack(track Track) (YouTubeTrack, error) {
 	var doc *goquery.Document
 	logger.Log("Searching youtube results to \"" + fmt.Sprintf(YOUTUBE_QUERY_PATTERN, strings.Replace(track.SearchPattern, " ", "+", -1)) + "\".")
-	req, _ := http.NewRequest("GET", fmt.Sprintf(YOUTUBE_QUERY_PATTERN, strings.Replace(track.SearchPattern, " ", "+", -1)), nil)
-	req.Header.Add("Accept-Language", "en")
-	response, err := http.DefaultClient.Do(req)
+	request, _ := http.NewRequest("GET", fmt.Sprintf(YOUTUBE_QUERY_PATTERN, strings.Replace(track.SearchPattern, " ", "+", -1)), nil)
+	request.Header.Add("Accept-Language", "en")
+	response, err := http.DefaultClient.Do(request)
 	if err == nil {
 		doc, _ = goquery.NewDocumentFromResponse(response)
 	} else {
@@ -51,6 +51,8 @@ func (youtube *YouTube) FindTrack(track Track) (YouTubeTrack, error) {
 		logger.Warn("Cannot retrieve doc from \"" + fmt.Sprintf(YOUTUBE_QUERY_PATTERN, strings.Replace(track.SearchPattern, " ", "+", -1)) + "\": " + err.Error())
 		return YouTubeTrack{}, err
 	}
+	// html, _ := doc.Html()
+	// logger.Debug(html)
 	selection := doc.Find(YOUTUBE_VIDEO_SELECTOR)
 	selection_desc := doc.Find(YOUTUBE_DESC_SELECTOR)
 	selection_duration := doc.Find(YOUTUBE_DURATION_SELECTOR)
@@ -59,11 +61,11 @@ func (youtube *YouTube) FindTrack(track Track) (YouTubeTrack, error) {
 			item := selection.Eq(selection_item)
 			item_href, item_href_ok := item.Attr("href")
 			item_title, item_title_ok := item.Attr("title")
-			item_user, item_user_ok := "", false
+			item_user, item_user_ok := "UNKNOWN", false
 			item_length, item_length_ok := 0, false
 			if selection_item < len(selection_desc.Nodes) {
 				item_desc := selection_desc.Eq(selection_item)
-				item_user = strings.TrimSpace(item_desc.Text())
+				item_user = strings.TrimSpace(item_desc.Find("a").Text())
 				item_user_ok = true
 			}
 			if selection_item < len(selection_duration.Nodes) {
@@ -83,7 +85,11 @@ func (youtube *YouTube) FindTrack(track Track) (YouTubeTrack, error) {
 				}
 			}
 			if !(item_href_ok && item_title_ok && item_user_ok && item_length_ok) {
-				logger.Debug("Non-standard YouTube video entry structure. Continuing scraping...")
+				logger.Debug("Non-standard YouTube video entry structure: " +
+					"url is " + strconv.FormatBool(item_href_ok) + ", " +
+					"title is " + strconv.FormatBool(item_title_ok) + ", " +
+					"user is " + strconv.FormatBool(item_user_ok) + ", " +
+					"duration is " + strconv.FormatBool(item_length_ok) + ". Continuing scraping...")
 				continue
 			} else if !strings.Contains(strings.ToLower(item_href), "youtu.be") &&
 				!strings.Contains(strings.ToLower(item_href), "watch?v=") {
