@@ -57,6 +57,9 @@ func (youtube *YouTube) FindTrack(track Track) (YouTubeTrack, error) {
 	selection_desc := doc.Find(YOUTUBE_DESC_SELECTOR)
 	selection_duration := doc.Find(YOUTUBE_DURATION_SELECTOR)
 	for lap := range [2]int{} {
+		if youtube.Interactive && lap > 0 {
+			continue
+		}
 		for selection_item := range selection.Nodes {
 			item := selection.Eq(selection_item)
 			item_href, item_href_ok := item.Attr("href")
