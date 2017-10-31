@@ -23,17 +23,18 @@ import (
 )
 
 var (
-	arg_folder                *string
-	arg_playlist              *string
-	arg_replace_local         *bool
-	arg_flush_metadata        *bool
-	arg_disable_normalization *bool
-	arg_disable_m3u           *bool
-	arg_interactive           *bool
-	arg_clean_junks           *bool
-	arg_log                   *bool
-	arg_debug                 *bool
-	arg_simulate              *bool
+	arg_folder                  *string
+	arg_playlist                *string
+	arg_replace_local           *bool
+	arg_flush_metadata          *bool
+	arg_disable_normalization   *bool
+	arg_disable_m3u             *bool
+	arg_disable_timestamp_flush *bool
+	arg_interactive             *bool
+	arg_clean_junks             *bool
+	arg_log                     *bool
+	arg_debug                   *bool
+	arg_simulate                *bool
 
 	tracks           Tracks
 	tracks_failed    Tracks
@@ -64,6 +65,7 @@ func main() {
 	arg_flush_metadata = flag.Bool("flush-metadata", false, "Flush metadata informations to already synchronized songs")
 	arg_disable_normalization = flag.Bool("disable-normalization", false, "Disable songs volume normalization")
 	arg_disable_m3u = flag.Bool("disable-m3u", false, "Disable automatic creation of playlists .m3u file")
+	arg_disable_timestamp_flush = flag.Bool("disable-timestamp-flush", false, "Disable automatic songs files timestamps flush")
 	arg_interactive = flag.Bool("interactive", false, "Enable interactive mode")
 	arg_clean_junks = flag.Bool("clean-junks", false, "Scan for junks file and clean them")
 	arg_log = flag.Bool("log", false, "Enable logging into file ./spotitube.log")
@@ -203,6 +205,18 @@ func main() {
 			}
 		}
 		wait_group.Wait()
+
+		if !*arg_disable_timestamp_flush {
+			for _, track := range tracks {
+				if !FileExists(track.FilenameFinal()) {
+					continue
+				}
+				now := time.Now().Local()
+				if err := os.Chtimes(track.FilenameFinal(), now, now); err != nil {
+					logger.Warn("Unable to flush timestamp on " + track.FilenameFinal())
+				}
+			}
+		}
 
 		if !*arg_simulate && !*arg_disable_m3u && *arg_playlist != "none" {
 			if FileExists(playlist_info.Name + ".m3u") {
