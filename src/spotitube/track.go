@@ -130,10 +130,17 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 			strings.Contains(strings.ToLower(track.Title), "ft. ") ||
 			strings.Contains(strings.ToLower(track.Title), "featuring ") ||
 			strings.Contains(strings.ToLower(track.Title), "with ") {
-			track.Title = strings.Replace(track.Title, "feat. ", "ft. ", -1)
-			track.Title = strings.Replace(strings.Replace(track.Title, "Featuring ", "ft. ", -1), "featuring ", "ft. ", -1)
-			track.Title = strings.Replace(strings.Replace(track.Title, "With ", "ft. ", -1), "with ", "ft. ", -1)
+			for _, featuring_symbol := range []string{"featuring", "feat.", "with"} {
+				for _, featuring_symbol_case := range []string{featuring_symbol, strings.Title(featuring_symbol)} {
+					track.Title = strings.Replace(track.Title, featuring_symbol_case+" ", "ft. ", -1)
+				}
+			}
 		} else {
+			if strings.Contains(track.Title, "(") &&
+				(strings.Contains(track.Title, " vs. ") || strings.Contains(track.Title, " vs ")) &&
+				strings.Contains(track.Title, ")") {
+				track.Title = strings.Split(track.Title, " (")[0]
+			}
 			var track_featurings string
 			if len(track.Featurings) > 1 {
 				track_featurings = "(ft. " + strings.Join(track.Featurings[:len(track.Featurings)-1], ", ") +
