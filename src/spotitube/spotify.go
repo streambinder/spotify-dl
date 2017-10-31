@@ -54,7 +54,7 @@ func (spotify *Spotify) Auth() bool {
 	return true
 }
 
-func (spotify *Spotify) Library() []api.FullTrack {
+func (spotify *Spotify) LibraryTracks() []api.FullTrack {
 	logger.Log("Reading user library.")
 	var tracks []api.FullTrack
 	var iterations int = 0
@@ -76,9 +76,15 @@ func (spotify *Spotify) Library() []api.FullTrack {
 	return tracks
 }
 
-func (spotify *Spotify) Playlist(playlist_uri string) []api.FullTrack {
+func (spotify *Spotify) Playlist(playlist_uri string) (*api.FullPlaylist, error) {
+	logger.Log("Fetching " + playlist_uri + " informations.")
 	playlist_owner, playlist_id := spotify.ParsePlaylistUri(playlist_uri)
-	logger.Log("Reading playlist with ID \"" + string(playlist_id) + "\" by \"" + playlist_owner + "\".")
+	return spotify.Client.GetPlaylist(playlist_owner, playlist_id)
+}
+
+func (spotify *Spotify) PlaylistTracks(playlist_uri string) []api.FullTrack {
+	playlist_owner, playlist_id := spotify.ParsePlaylistUri(playlist_uri)
+	logger.Log("Reading playlist with ID \"" + string(playlist_id) + "\".")
 	var tracks []api.FullTrack
 	var iterations int = 0
 	var options api.Options = spotify.DefaultOptions()

@@ -28,6 +28,7 @@ var (
 	arg_replace_local         *bool
 	arg_flush_metadata        *bool
 	arg_disable_normalization *bool
+	arg_disable_m3u           *bool
 	arg_interactive           *bool
 	arg_clean_junks           *bool
 	arg_log                   *bool
@@ -36,6 +37,7 @@ var (
 
 	tracks           Tracks
 	tracks_failed    Tracks
+	playlist_info    *api.FullPlaylist
 	youtube_client   *YouTube = NewYouTubeClient()
 	spotify_client   *Spotify = NewSpotifyClient()
 	logger           *Logger  = NewLogger()
@@ -61,6 +63,7 @@ func main() {
 	arg_replace_local = flag.Bool("replace-local", false, "Replace local library songs if better results get encountered")
 	arg_flush_metadata = flag.Bool("flush-metadata", false, "Flush metadata informations to already synchronized songs")
 	arg_disable_normalization = flag.Bool("disable-normalization", false, "Disable songs volume normalization")
+	arg_disable_m3u = flag.Bool("disable-m3u", false, "Disable automatic creation of playlists .m3u file")
 	arg_interactive = flag.Bool("interactive", false, "Enable interactive mode")
 	arg_clean_junks = flag.Bool("clean-junks", false, "Scan for junks file and clean them")
 	arg_log = flag.Bool("log", false, "Enable logging into file ./spotitube.log")
@@ -98,9 +101,16 @@ func main() {
 		tracks_online_albums_ids []api.ID
 	)
 	if *arg_playlist == "none" {
-		tracks_online = spotify_client.Library()
+		tracks_online = spotify_client.LibraryTracks()
 	} else {
-		tracks_online = spotify_client.Playlist(*arg_playlist)
+		var playlist_err error
+		playlist_info, playlist_err = spotify_client.Playlist(*arg_playlist)
+		if playlist_err != nil {
+			logger.Fatal("Something went wrong while fetching playlist info.")
+		} else {
+			logger.Log("Getting songs from \"" + playlist_info.Name + "\" playlist, by \"" + playlist_info.Owner.DisplayName + "\"")
+			tracks_online = spotify_client.PlaylistTracks(*arg_playlist)
+		}
 	}
 	for _, track := range tracks_online {
 		tracks_online_albums_ids = append(tracks_online_albums_ids, track.Album.ID)
@@ -193,6 +203,29 @@ func main() {
 			}
 		}
 		wait_group.Wait()
+
+		if !*arg_simulate && !*arg_disable_m3u && *arg_playlist != "none" {
+			if FileExists(playlist_info.Name + ".m3u") {
+				os.Remove(playlist_info.Name + ".m3u")
+			}
+			playlist_m3u := "#EXTM3U\n"
+			for track_index := len(tracks) - 1; track_index >= 0; track_index-- {
+				track := tracks[track_index]
+				playlist_m3u = playlist_m3u + "#EXTINF:" + strconv.Itoa(track.Duration) + "," + track.Filename + "\n" +
+					track.FilenameFinal() + "\n"
+			}
+			playlist_m3u_file, playlist_err := os.Create(playlist_info.Name + ".m3u")
+			if playlist_err != nil {
+				logger.Warn("Unable to create M3U file: " + playlist_err.Error())
+			} else {
+				defer playlist_m3u_file.Close()
+				_, playlist_err := playlist_m3u_file.WriteString(playlist_m3u)
+				playlist_m3u_file.Sync()
+				if playlist_err != nil {
+					logger.Warn("Unable to write M3U file: " + playlist_err.Error())
+				}
+			}
+		}
 
 		CleanJunks()
 
