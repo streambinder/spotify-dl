@@ -1,5 +1,6 @@
 bin
 pkg
+out
 spotitube.log
 src/github.com
 src/golang.org

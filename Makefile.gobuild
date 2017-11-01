@@ -2,7 +2,7 @@ CUR_DIR = $(shell pwd)
 
 %.statbin:
 	@ ( \
-		echo "Building up..."; \
+		echo "Building up for $(GOARCH) arch..."; \
 		GOPATH=$(CUR_DIR) go build -o $(CUR_DIR)/bin/$(NAME) $(subst .statbin,,$@) && echo "Done."; \
 	);
 
@@ -11,6 +11,7 @@ clean:
 		echo "Cleaning up..."; \
 		test ! -d $(CUR_DIR)/pkg || rm -rf $(CUR_DIR)/pkg; \
 		test ! -d $(CUR_DIR)/bin || rm -rf $(CUR_DIR)/bin; \
+        test ! -d $(CUR_DIR)/out || rm -rf $(CUR_DIR)/out; \
 		echo "Done."; \
 	);
 

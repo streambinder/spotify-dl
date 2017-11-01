@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	VERSION                 = 1
+	VERSION                 = 2
 	VERSION_ORIGIN          = "https://github.com/streambinder/spotitube/releases/latest"
 	VERSION_ORIGIN_SELECTOR = ".release-title"
 
