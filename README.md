@@ -103,6 +103,7 @@ You may want to use some of the following input flags:
 6. `-flush-metadata`: enable metadata informations flush also for songs that have been already synchronized.
 7. `-replace-local`: replace already downloaded (via `spotitube`) songs, if better ones get encountered.
 8. `-clean-junks`: forcely batch remove temporary files that kept existing for any unattended runtime error.
+9. `-version`: just print installed version.
 
 #### Developers
 

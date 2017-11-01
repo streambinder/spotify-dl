@@ -39,6 +39,7 @@ var (
 	arg_log                     *bool
 	arg_debug                   *bool
 	arg_simulate                *bool
+	arg_version                 *bool
 
 	tracks           Tracks
 	tracks_failed    Tracks
@@ -51,18 +52,6 @@ var (
 )
 
 func main() {
-	for _, command_name := range []string{"youtube-dl", "ffmpeg"} {
-		_, err := exec.LookPath(command_name)
-		if err != nil {
-			logger.Fatal("Are you sure " + command_name + " is actually installed?")
-		}
-	}
-
-	_, err := net.Dial("tcp", DEFAULT_TCP_CHECK)
-	if err != nil {
-		logger.Fatal("Are you sure you're connected to the internet?")
-	}
-
 	arg_folder = flag.String("folder", ".", "Folder to sync with music.")
 	arg_playlist = flag.String("playlist", "none", "Playlist URI to synchronize.")
 	arg_replace_local = flag.Bool("replace-local", false, "Replace local library songs if better results get encountered")
@@ -76,7 +65,25 @@ func main() {
 	arg_log = flag.Bool("log", false, "Enable logging into file ./spotitube.log")
 	arg_debug = flag.Bool("debug", false, "Enable debug messages")
 	arg_simulate = flag.Bool("simulate", false, "Simulate process flow, without really altering filesystem")
+	arg_version = flag.Bool("version", false, "Print version")
 	flag.Parse()
+
+	if *arg_version {
+		fmt.Println(fmt.Sprintf("SpotiTube, version %d.", VERSION))
+		os.Exit(0)
+	}
+
+	for _, command_name := range []string{"youtube-dl", "ffmpeg"} {
+		_, err := exec.LookPath(command_name)
+		if err != nil {
+			logger.Fatal("Are you sure " + command_name + " is actually installed?")
+		}
+	}
+
+	_, err := net.Dial("tcp", DEFAULT_TCP_CHECK)
+	if err != nil {
+		logger.Fatal("Are you sure you're connected to the internet?")
+	}
 
 	if *arg_log {
 		logger.SetFile(DEFAULT_LOG_PATH)
