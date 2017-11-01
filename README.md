@@ -32,11 +32,11 @@ The solution I wrote to automate the process is covered by two major components:
 
 As already mentioned it heavily uses `youtube-dl` to download tracks from _YouTube_ and `ffmpeg` to convert them to _mp3_. You absolutely need them. Thus, it's written in `GO-lang`: assure you actually own it.
 
-Dependency   |       Version
------------- | :------------------:
-`youtube-dl` | _none in particular_
-`ffmpeg`     | _none in particular_
-`golang`     |         1.7+
+Dependency   |       Version        | Dependency type
+------------ | :------------------: | :-------------:
+`youtube-dl` | _none in particular_ |     Runtime
+`ffmpeg`     | _none in particular_ |     Runtime
+`golang`     |         1.7+         |   Compilation
 
 ## What about its reliability
 
@@ -65,7 +65,13 @@ Failure |   **5%**
 
 ### How to install
 
-The way to install it is pretty straightforward:
+#### Download package
+
+Actually, only _RPM_-based and _DEB_-based distributions are supported. If you're on one of those, download the package to [latest release](https://github.com/streambinder/spotitube/releases/latest) page.
+
+#### Build it yourself
+
+The way to build it is pretty straightforward:
 
 ```bash
 git clone https://github.com/streambinder/spotitube
