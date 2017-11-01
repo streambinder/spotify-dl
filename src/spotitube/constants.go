@@ -5,6 +5,10 @@ import (
 )
 
 const (
+	VERSION                 = 1
+	VERSION_ORIGIN          = "https://github.com/streambinder/spotitube/releases/latest"
+	VERSION_ORIGIN_SELECTOR = ".release-title"
+
 	SHELL_NAME_DEFAULT    = "spotitube"
 	SHELL_NAME_MIN_LENGTH = 12
 	SHELL_COLOR_DEFAULT   = color.FgBlue

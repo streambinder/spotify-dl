@@ -7,16 +7,19 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	id3 "github.com/bogem/id3v2"
 	api "github.com/zmb3/spotify"
 	. "spotitube"
@@ -30,6 +33,7 @@ var (
 	arg_disable_normalization   *bool
 	arg_disable_m3u             *bool
 	arg_disable_timestamp_flush *bool
+	arg_disable_update_check    *bool
 	arg_interactive             *bool
 	arg_clean_junks             *bool
 	arg_log                     *bool
@@ -66,6 +70,7 @@ func main() {
 	arg_disable_normalization = flag.Bool("disable-normalization", false, "Disable songs volume normalization")
 	arg_disable_m3u = flag.Bool("disable-m3u", false, "Disable automatic creation of playlists .m3u file")
 	arg_disable_timestamp_flush = flag.Bool("disable-timestamp-flush", false, "Disable automatic songs files timestamps flush")
+	arg_disable_update_check = flag.Bool("disable-update-check", false, "Disable automatic update check at startup")
 	arg_interactive = flag.Bool("interactive", false, "Enable interactive mode")
 	arg_clean_junks = flag.Bool("clean-junks", false, "Scan for junks file and clean them")
 	arg_log = flag.Bool("log", false, "Enable logging into file ./spotitube.log")
@@ -79,6 +84,37 @@ func main() {
 
 	if *arg_debug {
 		logger.EnableDebug()
+	}
+
+	if !*arg_disable_update_check {
+		var doc *goquery.Document
+		logger.Debug("Fetching latest release informations to " + VERSION_ORIGIN + ".")
+		request, _ := http.NewRequest("GET", VERSION_ORIGIN, nil)
+		request.Header.Add("Accept-Language", "en")
+		response, err := http.DefaultClient.Do(request)
+		if err == nil {
+			doc, _ = goquery.NewDocumentFromResponse(response)
+		} else {
+			doc, err = goquery.NewDocument(VERSION_ORIGIN)
+		}
+		if err != nil {
+			logger.Warn("Cannot retrieve doc from " + VERSION_ORIGIN + ": " + err.Error())
+		}
+		selection := doc.Find(VERSION_ORIGIN_SELECTOR)
+		for selection_item := range selection.Nodes {
+			item := selection.Eq(selection_item)
+			regex, regex_err := regexp.Compile("[^0-9]+")
+			if regex_err != nil {
+				logger.Warn("Unable to compile regex needed to parse version: " + regex_err.Error())
+			}
+			latest_version, latest_version_err := strconv.Atoi(regex.ReplaceAllString(item.Find("a").Text(), ""))
+			if latest_version_err != nil {
+				logger.Warn("Unable to fetch latest version value.")
+			} else if latest_version != VERSION {
+				logger.Warn("You're not aligned to the latest available version. " +
+					"Check it out at: " + VERSION_ORIGIN)
+			}
+		}
 	}
 
 	if !(IsDir(*arg_folder)) {

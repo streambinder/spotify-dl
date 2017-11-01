@@ -92,10 +92,11 @@ You may want to use some of the following input flags:
 1. `-disable-normalization`: disable songs volume normalization. Although volume normalization is really useful, as lot of songs gets downloaded with several `max_volume` values, resulting into some of them with very low volume level, this option (enabled by default) make the process slow down.
 2. `-disable-m3u`: disable automatic creation of `.m3u` file, used to keep track of playlists songs.
 3. `-disable-timestamp-flush`: disable automatic songs files timestamps flush to keep library/playlist order.
-4. `-interactive`: enable interactive mode. This allows to eventually override `spotitube` decisions about which _YouTube_ result to pick, prompting for user input on every - legal - song it encounters.
-5. `-flush-metadata`: enable metadata informations flush also for songs that have been already synchronized.
-6. `-replace-local`: replace already downloaded (via `spotitube`) songs, if better ones get encountered.
-7. `-clean-junks`: forcely batch remove temporary files that kept existing for any unattended runtime error.
+4. `-disable-update-check`: disable automatic update check at startup.
+5. `-interactive`: enable interactive mode. This allows to eventually override `spotitube` decisions about which _YouTube_ result to pick, prompting for user input on every - legal - song it encounters.
+6. `-flush-metadata`: enable metadata informations flush also for songs that have been already synchronized.
+7. `-replace-local`: replace already downloaded (via `spotitube`) songs, if better ones get encountered.
+8. `-clean-junks`: forcely batch remove temporary files that kept existing for any unattended runtime error.
 
 #### Developers
 
