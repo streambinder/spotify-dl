@@ -268,8 +268,10 @@ func main() {
 			playlist_m3u := "#EXTM3U\n"
 			for track_index := len(tracks) - 1; track_index >= 0; track_index-- {
 				track := tracks[track_index]
-				playlist_m3u = playlist_m3u + "#EXTINF:" + strconv.Itoa(track.Duration) + "," + track.Filename + "\n" +
-					track.FilenameFinal() + "\n"
+				if FileExists(track.FilenameFinal()) {
+					playlist_m3u = playlist_m3u + "#EXTINF:" + strconv.Itoa(track.Duration) + "," + track.Filename + "\n" +
+						track.FilenameFinal() + "\n"
+				}
 			}
 			playlist_m3u_file, playlist_err := os.Create(playlist_info.Name + ".m3u")
 			if playlist_err != nil {
