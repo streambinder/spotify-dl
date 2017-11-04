@@ -16,7 +16,7 @@ const (
 	SHELL_COLOR_SPOTIFY   = color.FgGreen
 
 	DEFAULT_EXTENSION = ".mp3"
-	DEFAULT_LOG_PATH  = "spotitube.log"
+	DEFAULT_LOG_PATH  = "spotitube-%s.log"
 	DEFAULT_TCP_CHECK = "github.com:443"
 
 	SYSTEM_LETTER_BYTES    = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
