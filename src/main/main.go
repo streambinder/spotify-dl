@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -19,7 +20,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
 	id3 "github.com/bogem/id3v2"
 	api "github.com/zmb3/spotify"
 	. "spotitube"
@@ -94,34 +94,41 @@ func main() {
 	}
 
 	if !*arg_disable_update_check {
-		var doc *goquery.Document
-		logger.Debug("Fetching latest release informations to " + VERSION_ORIGIN + ".")
-		request, _ := http.NewRequest("GET", VERSION_ORIGIN, nil)
-		request.Header.Add("Accept-Language", "en")
-		response, err := http.DefaultClient.Do(request)
-		if err == nil {
-			doc, _ = goquery.NewDocumentFromResponse(response)
-		} else {
-			doc, err = goquery.NewDocument(VERSION_ORIGIN)
+		type OnlineVersion struct {
+			Name string `json:"name"`
 		}
-		if err != nil {
-			logger.Warn("Cannot retrieve doc from " + VERSION_ORIGIN + ": " + err.Error())
+		version_client := http.Client{
+			Timeout: time.Second * 2,
 		}
-		selection := doc.Find(VERSION_ORIGIN_SELECTOR)
-		for selection_item := range selection.Nodes {
-			item := selection.Eq(selection_item)
-			regex, regex_err := regexp.Compile("[^0-9]+")
-			if regex_err != nil {
-				logger.Warn("Unable to compile regex needed to parse version: " + regex_err.Error())
-			}
-			latest_version, latest_version_err := strconv.Atoi(regex.ReplaceAllString(item.Find("a").Text(), ""))
-			if latest_version_err != nil {
-				logger.Warn("Unable to fetch latest version value.")
-			} else if latest_version != VERSION {
-				logger.Warn("You're not aligned to the latest available version. " +
-					"Check it out at: " + VERSION_ORIGIN)
-			}
+		version_request, version_error := http.NewRequest(http.MethodGet, VERSION_ORIGIN, nil)
+		if version_error != nil {
+			logger.Warn("Unable to compile version request: " + version_error.Error())
 		}
+		version_response, version_error := version_client.Do(version_request)
+		if version_error != nil {
+			logger.Warn("Unable to read response from version request: " + version_error.Error())
+		}
+		version_response_body, version_error := ioutil.ReadAll(version_response.Body)
+		if version_error != nil {
+			logger.Warn("Unable to get response body: " + version_error.Error())
+		}
+		version_data := OnlineVersion{}
+		version_error = json.Unmarshal(version_response_body, &version_data)
+		if version_error != nil {
+			logger.Warn("Unable to parse json from response body: " + version_error.Error())
+		}
+		version_value := 0
+		version_regex, version_error := regexp.Compile("[^0-9]+")
+		if version_error != nil {
+			logger.Warn("Unable to compile regex needed to parse version: " + version_error.Error())
+		}
+		version_value, version_error = strconv.Atoi(version_regex.ReplaceAllString(version_data.Name, ""))
+		if version_error != nil {
+			logger.Warn("Unable to fetch latest version value: " + version_error.Error())
+		} else if version_value != VERSION {
+			logger.Warn("You're not aligned to the latest available version.")
+		}
+		logger.Debug(fmt.Sprintf("Actual version %d, online version %d.", VERSION, version_value))
 	}
 
 	if !(IsDir(*arg_folder)) {
