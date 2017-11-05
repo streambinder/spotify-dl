@@ -84,6 +84,20 @@ package_deb: create_out
 	);
 
 package_eopkg: create_out
+	@ ( \
+		cp package/eopkg/pspec.xml{,.orig}; \
+		sed -i 's/:VERSION:/$(VERSION)/g' package/eopkg/pspec.xml; \
+		make x86; \
+		cp bin/spotitube package/eopkg/files/; \
+		sudo solbuild build package/eopkg/pspec.xml; \
+		mv spotitube-*.eopkg out/spotitube-i386.eopkg; \
+		make x64; \
+		sudo solbuild build package/eopkg/pspec.xml; \
+		mv spotitube-*.eopkg out/spotitube-x86_64.eopkg; \
+		rm -f package/eopkg/pspec.xml; \
+		mv package/eopkg/pspec.xml{.orig,}; \
+		rm -f package/eopkg/files/spotitube; \
+	);
 
 package_snap: create_out
 

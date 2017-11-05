@@ -1,0 +1,38 @@
+<PISI>
+	<Source>
+		<Name>spotitube</Name>
+		<Homepage>https://github.com/streambinder/spotitube</Homepage>
+		<Packager>
+			<Name>Davide Pucci</Name>
+			<Email>posta@davidepucci.it</Email>
+		</Packager>
+		<License>GPLv2</License>
+		<Summary xml:lang="en">Shell go-lang application to incrementally download from Spotify into local folder.</Summary>
+		<Description xml:lang="en">Shell go-lang application to incrementally download from Spotify into local folder.</Description>
+		<Archive type="binary" sha1sum="d8bc745d39f24cf5778c6f8dc23319cf97f59730">https://raw.githubusercontent.com/streambinder/spotitube/master/assets/spotify.ico</Archive>
+		<AdditionalFiles>
+			<AdditionalFile owner="root" permission="0755" target="spotitube">spotitube</AdditionalFile>
+		</AdditionalFiles>
+	</Source>
+	<Package>
+		<Name>spotitube</Name>
+		<Summary xml:lang="en">Shell go-lang application to incrementally download from Spotify into local folder.</Summary>
+		<Description xml:lang="en">Shell go-lang application to incrementally download from Spotify into local folder.</Description>
+		<Files>
+			<Path fileType="executable">/usr/sbin/spotitube</Path>
+		</Files>
+		<RuntimeDependencies>
+			<Dependency>ffmpeg</Dependency>
+			<Dependency>youtube-dl</Dependency>
+		</RuntimeDependencies>
+	</Package>
+	<History>
+		<Update release=":VERSION:">
+			<Date>2017-11-05</Date>
+			<Version>:VERSION:</Version>
+			<Comment>Release</Comment>
+			<Name>Davide Pucci</Name>
+			<Email>posta@davidepucci.it</Email>
+		</Update>
+	</History>
+</PISI>
