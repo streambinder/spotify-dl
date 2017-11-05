@@ -23,6 +23,8 @@ const (
 	SYSTEM_LETTER_IDX_MASK = 1<<SYSTEM_LETTER_IDX_BITS - 1
 	SYSTEM_LETTER_IDX_MAX  = 63 / SYSTEM_LETTER_IDX_BITS
 
+	LYRICS_API_URL = "https://api.lyrics.ovh/v1/%s/%s"
+
 	YOUTUBE_QUERY_URL          = "https://www.youtube.com/results"
 	YOUTUBE_QUERY_PATTERN      = YOUTUBE_QUERY_URL + "?q=%s"
 	YOUTUBE_VIDEO_SELECTOR     = ".yt-uix-tile-link"

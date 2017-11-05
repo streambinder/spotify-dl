@@ -32,6 +32,7 @@ var (
 	arg_flush_metadata          *bool
 	arg_disable_normalization   *bool
 	arg_disable_m3u             *bool
+	arg_disable_lyrics          *bool
 	arg_disable_timestamp_flush *bool
 	arg_disable_update_check    *bool
 	arg_interactive             *bool
@@ -58,6 +59,7 @@ func main() {
 	arg_flush_metadata = flag.Bool("flush-metadata", false, "Flush metadata informations to already synchronized songs")
 	arg_disable_normalization = flag.Bool("disable-normalization", false, "Disable songs volume normalization")
 	arg_disable_m3u = flag.Bool("disable-m3u", false, "Disable automatic creation of playlists .m3u file")
+	arg_disable_lyrics = flag.Bool("disable-lyrics", false, "Disable download of songs lyrics and their application into mp3.")
 	arg_disable_timestamp_flush = flag.Bool("disable-timestamp-flush", false, "Disable automatic songs files timestamps flush")
 	arg_disable_update_check = flag.Bool("disable-update-check", false, "Disable automatic update check at startup")
 	arg_interactive = flag.Bool("interactive", false, "Enable interactive mode")
@@ -171,7 +173,7 @@ func main() {
 
 	logger.Log("Checking which songs need to be downloaded.")
 	for track_index := len(tracks_online) - 1; track_index >= 0; track_index-- {
-		track := ParseSpotifyTrack(tracks_online[track_index], tracks_online_albums[track_index])
+		track := ParseSpotifyTrack(tracks_online[track_index], tracks_online_albums[track_index], !*arg_disable_lyrics)
 		if !tracks.Has(track) {
 			tracks = append(tracks, track)
 		} else {
@@ -358,6 +360,7 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 				id3.TextFrame{Encoding: id3.EncodingUTF8, Text: strconv.Itoa(track.TrackNumber)})
 			track_mp3.SetYear(track.Year)
 			if track_artwork_err == nil {
+				logger.Debug("Inflating artwork metadata...")
 				track_mp3.AddAttachedPicture(id3.PictureFrame{
 					Encoding:    id3.EncodingUTF8,
 					MimeType:    "image/jpeg",
@@ -367,11 +370,21 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 				})
 			}
 			if len(track.URL) > 0 {
+				logger.Debug("Inflating youtube origin url metadata...")
 				track_mp3.AddCommentFrame(id3.CommentFrame{
 					Encoding:    id3.EncodingUTF8,
 					Language:    "eng",
 					Description: "youtube",
 					Text:        track.URL,
+				})
+			}
+			if len(track.Lyrics) > 0 {
+				logger.Debug("Inflating lyrics metadata...")
+				track_mp3.AddUnsynchronisedLyricsFrame(id3.UnsynchronisedLyricsFrame{
+					Encoding:          id3.EncodingUTF8,
+					Language:          "eng",
+					ContentDescriptor: track.Title,
+					Lyrics:            track.Lyrics,
 				})
 			}
 			track_mp3.Save()

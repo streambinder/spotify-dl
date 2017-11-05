@@ -97,13 +97,14 @@ You may want to use some of the following input flags:
 
 1. `-disable-normalization`: disable songs volume normalization. Although volume normalization is really useful, as lot of songs gets downloaded with several `max_volume` values, resulting into some of them with very low volume level, this option (enabled by default) make the process slow down.
 2. `-disable-m3u`: disable automatic creation of `.m3u` file, used to keep track of playlists songs.
-3. `-disable-timestamp-flush`: disable automatic songs files timestamps flush to keep library/playlist order.
-4. `-disable-update-check`: disable automatic update check at startup.
-5. `-interactive`: enable interactive mode. This allows to eventually override `spotitube` decisions about which _YouTube_ result to pick, prompting for user input on every - legal - song it encounters.
-6. `-flush-metadata`: enable metadata informations flush also for songs that have been already synchronized.
-7. `-replace-local`: replace already downloaded (via `spotitube`) songs, if better ones get encountered.
-8. `-clean-junks`: forcely batch remove temporary files that kept existing for any unattended runtime error.
-9. `-version`: just print installed version.
+3. `-disable-lyrics`: disable download of songs lyrics and their application into `mp3`.
+4. `-disable-timestamp-flush`: disable automatic songs files timestamps flush to keep library/playlist order.
+5. `-disable-update-check`: disable automatic update check at startup.
+6. `-interactive`: enable interactive mode. This allows to eventually override `spotitube` decisions about which _YouTube_ result to pick, prompting for user input on every - legal - song it encounters.
+7. `-flush-metadata`: enable metadata informations flush also for songs that have been already synchronized.
+8. `-replace-local`: replace already downloaded (via `spotitube`) songs, if better ones get encountered.
+9. `-clean-junks`: forcely batch remove temporary files that kept existing for any unattended runtime error.
+10. `-version`: just print installed version.
 
 #### Developers
 

@@ -1,8 +1,13 @@
 package spotitube
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bogem/id3v2"
 	"github.com/kennygrant/sanitize"
@@ -44,6 +49,7 @@ type Track struct {
 	FilenameTemp  string
 	FilenameExt   string
 	SearchPattern string
+	Lyrics        string
 	Local         bool
 }
 
@@ -72,7 +78,7 @@ func (tracks Tracks) CountOnline() int {
 	return counter
 }
 
-func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.FullAlbum) Track {
+func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.FullAlbum, search_lyrics bool) Track {
 	track := Track{
 		Title:  spotify_track.SimpleTrack.Name,
 		Artist: (spotify_track.SimpleTrack.Artists[0]).Name,
@@ -109,6 +115,7 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 		FilenameTemp:  "",
 		FilenameExt:   DEFAULT_EXTENSION,
 		SearchPattern: "",
+		Lyrics:        "",
 		Local:         false,
 	}
 
@@ -177,6 +184,10 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 
 	if track.Local {
 		track.URL = track.ReadFrame("youtube")
+	}
+
+	if search_lyrics {
+		track.Lyrics = track.SearchLyrics()
 	}
 
 	return track
@@ -258,6 +269,37 @@ func (track Track) ReadFrame(name string) string {
 	}
 
 	return ""
+}
+
+func (track Track) SearchLyrics() string {
+	type LyricsAPIEntry struct {
+		Lyrics string `json:"lyrics"`
+	}
+	lyrics_client := http.Client{
+		Timeout: time.Second * 10,
+	}
+	lyrics_request, lyrics_error := http.NewRequest(http.MethodGet, fmt.Sprintf(LYRICS_API_URL, track.Artist, track.Song), nil)
+	if lyrics_error != nil {
+		logger.Warn("Unable to compile lyrics request: " + lyrics_error.Error())
+		return ""
+	}
+	lyrics_response, lyrics_error := lyrics_client.Do(lyrics_request)
+	if lyrics_error != nil {
+		logger.Warn("Unable to read response from lyrics request: " + lyrics_error.Error())
+		return ""
+	}
+	lyrics_response_body, lyrics_error := ioutil.ReadAll(lyrics_response.Body)
+	if lyrics_error != nil {
+		logger.Warn("Unable to get response body: " + lyrics_error.Error())
+		return ""
+	}
+	lyrics_data := LyricsAPIEntry{}
+	lyrics_error = json.Unmarshal(lyrics_response_body, &lyrics_data)
+	if lyrics_error != nil {
+		logger.Warn("Unable to parse json from response body: " + lyrics_error.Error())
+		return ""
+	}
+	return lyrics_data.Lyrics
 }
 
 func SeemsType(sequence string, song_type int) bool {
