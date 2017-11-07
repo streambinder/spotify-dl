@@ -67,7 +67,10 @@ Failure |   **5%**
 
 #### Download package
 
-Actually, only _RPM_-based and _DEB_-based distributions are supported. If you're on one of those, download the package to [latest release](https://github.com/streambinder/spotitube/releases/latest) page.
+- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/deb.png)](https://github.com/streambinder/spotitube/releases/latest) Package for _DEB_-based distributions: [`spotitube.deb`](https://github.com/streambinder/spotitube/releases/latest)
+- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/rpm.png)](https://github.com/streambinder/spotitube/releases/latest) Package for _RPM_-based distributions: [`spotitube.rpm`](https://github.com/streambinder/spotitube/releases/latest)
+- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/eopkg.png)](https://github.com/streambinder/spotitube/releases/latest) Package for _Solus Project_: [`spotitube.eopkg`](https://github.com/streambinder/spotitube/releases/latest)
+- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/bin.png)](https://github.com/streambinder/spotitube/releases/latest) Precompiled binary file: [`spotitube.bin`](https://github.com/streambinder/spotitube/releases/latest)
 
 #### Build it yourself
 
