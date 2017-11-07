@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	VERSION        = 5
+	VERSION        = 6
 	VERSION_ORIGIN = "https://api.github.com/repos/streambinder/spotitube/releases/latest"
 
 	SHELL_NAME_DEFAULT    = "spotitube"
