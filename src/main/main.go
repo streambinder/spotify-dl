@@ -314,6 +314,50 @@ func main() {
 func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	if !track.Local && !*arg_disable_normalization {
+		var (
+			command_cmd         string = "ffmpeg"
+			command_args        []string
+			command_out         bytes.Buffer
+			command_err         error
+			normalization_delta string
+			normalization_file  string = strings.Replace(track.FilenameTemporary(),
+				track.FilenameExt, ".norm"+track.FilenameExt, -1)
+		)
+
+		command_args = []string{"-i", track.FilenameTemporary(), "-af", "volumedetect", "-f", "null", "-y", "null"}
+		logger.Debug("Getting max_volume value: \"" + command_cmd + " " + strings.Join(command_args, " ") + "\".")
+		command_obj := exec.Command(command_cmd, command_args...)
+		command_obj.Stderr = &command_out
+		command_err = command_obj.Run()
+		if command_err != nil {
+			logger.Warn("Unable to use ffmpeg to pull max_volume song value: " + command_out.String() + ".")
+			normalization_delta = "0.0"
+		} else {
+			command_scanner := bufio.NewScanner(strings.NewReader(command_out.String()))
+			for command_scanner.Scan() {
+				if strings.Contains(command_scanner.Text(), "max_volume:") {
+					normalization_delta = strings.Split(strings.Split(command_scanner.Text(), "max_volume:")[1], " ")[1]
+					normalization_delta = strings.Replace(normalization_delta, "-", "", -1)
+				}
+			}
+		}
+
+		if _, command_err = strconv.ParseFloat(normalization_delta, 64); command_err != nil {
+			logger.Warn("Unable to pull max_volume delta to be applied along with song volume normalization: " + normalization_delta + ".")
+			normalization_delta = "0.0"
+		}
+		command_args = []string{"-i", track.FilenameTemporary(), "-af", "volume=+" + normalization_delta + "dB", "-b:a", "320k", "-y", normalization_file}
+		logger.Debug("Going to compensate volume by " + normalization_delta + "dB")
+		logger.Log("Increasing audio quality for: " + track.Filename + ".")
+		logger.Debug("Using command: \"" + command_cmd + " " + strings.Join(command_args, " ") + "\"")
+		if _, command_err = exec.Command(command_cmd, command_args...).Output(); command_err != nil {
+			logger.Warn("Something went wrong while normalizing song \"" + track.Filename + "\" volume: " + command_err.Error())
+		}
+		os.Remove(track.FilenameTemporary())
+		os.Rename(normalization_file, track.FilenameTemporary())
+	}
+
 	if !FileExists(track.FilenameTemporary()) && FileExists(track.FilenameFinal()) {
 		err := os.Rename(track.FilenameFinal(),
 			track.FilenameTemporary())
@@ -390,50 +434,6 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 			track_mp3.Save()
 		}
 		track_mp3.Close()
-	}
-
-	if !track.Local && !*arg_disable_normalization {
-		var (
-			command_cmd         string = "ffmpeg"
-			command_args        []string
-			command_out         bytes.Buffer
-			command_err         error
-			normalization_delta string
-			normalization_file  string = strings.Replace(track.FilenameTemporary(),
-				track.FilenameExt, ".norm"+track.FilenameExt, -1)
-		)
-
-		command_args = []string{"-i", track.FilenameTemporary(), "-af", "volumedetect", "-f", "null", "-y", "null"}
-		logger.Debug("Getting max_volume value: \"" + command_cmd + " " + strings.Join(command_args, " ") + "\".")
-		command_obj := exec.Command(command_cmd, command_args...)
-		command_obj.Stderr = &command_out
-		command_err = command_obj.Run()
-		if command_err != nil {
-			logger.Warn("Unable to use ffmpeg to pull max_volume song value: " + command_out.String() + ".")
-			normalization_delta = "0.0"
-		} else {
-			command_scanner := bufio.NewScanner(strings.NewReader(command_out.String()))
-			for command_scanner.Scan() {
-				if strings.Contains(command_scanner.Text(), "max_volume:") {
-					normalization_delta = strings.Split(strings.Split(command_scanner.Text(), "max_volume:")[1], " ")[1]
-					normalization_delta = strings.Replace(normalization_delta, "-", "", -1)
-				}
-			}
-		}
-
-		if _, command_err = strconv.ParseFloat(normalization_delta, 64); command_err != nil {
-			logger.Warn("Unable to pull max_volume delta to be applied along with song volume normalization: " + normalization_delta + ".")
-			normalization_delta = "0.0"
-		}
-		command_args = []string{"-i", track.FilenameTemporary(), "-af", "volume=+" + normalization_delta + "dB", "-b:a", "320k", "-y", normalization_file}
-		logger.Debug("Going to compensate volume by " + normalization_delta + "dB")
-		logger.Log("Increasing audio quality for: " + track.Filename + ".")
-		logger.Debug("Using command: \"" + command_cmd + " " + strings.Join(command_args, " ") + "\"")
-		if _, command_err = exec.Command(command_cmd, command_args...).Output(); command_err != nil {
-			logger.Warn("Something went wrong while normalizing song \"" + track.Filename + "\" volume: " + command_err.Error())
-		}
-		os.Remove(track.FilenameTemporary())
-		os.Rename(normalization_file, track.FilenameTemporary())
 	}
 
 	err := os.Rename(track.FilenameTemporary(), track.FilenameFinal())
