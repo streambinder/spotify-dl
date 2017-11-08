@@ -293,6 +293,7 @@ func (track *Track) SearchLyrics() error {
 	lyrics_error = json.Unmarshal(lyrics_response_body, &lyrics_data)
 	if lyrics_error != nil {
 		logger.Warn("Unable to parse json from response body: " + lyrics_error.Error())
+		logger.Debug("Lyrics response body: " + string(lyrics_response_body[:]))
 		return lyrics_error
 	}
 
