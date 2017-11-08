@@ -1,6 +1,6 @@
 # SPOTITUBE
 
-[![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/sample.gif)](#spotitube)
+[![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/sample.gif)](#spotitube) [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/sample_result.png)](#spotitube)
 
 ## What is
 
