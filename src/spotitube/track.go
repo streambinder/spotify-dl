@@ -78,7 +78,7 @@ func (tracks Tracks) CountOnline() int {
 	return counter
 }
 
-func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.FullAlbum, search_lyrics bool) Track {
+func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.FullAlbum) Track {
 	track := Track{
 		Title:  spotify_track.SimpleTrack.Name,
 		Artist: (spotify_track.SimpleTrack.Artists[0]).Name,
@@ -186,10 +186,6 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 		track.URL = track.ReadFrame("youtube")
 	}
 
-	if search_lyrics {
-		track.Lyrics = track.SearchLyrics()
-	}
-
 	return track
 }
 
@@ -271,7 +267,7 @@ func (track Track) ReadFrame(name string) string {
 	return ""
 }
 
-func (track Track) SearchLyrics() string {
+func (track *Track) SearchLyrics() error {
 	type LyricsAPIEntry struct {
 		Lyrics string `json:"lyrics"`
 	}
@@ -281,25 +277,27 @@ func (track Track) SearchLyrics() string {
 	lyrics_request, lyrics_error := http.NewRequest(http.MethodGet, fmt.Sprintf(LYRICS_API_URL, track.Artist, track.Song), nil)
 	if lyrics_error != nil {
 		logger.Warn("Unable to compile lyrics request: " + lyrics_error.Error())
-		return ""
+		return lyrics_error
 	}
 	lyrics_response, lyrics_error := lyrics_client.Do(lyrics_request)
 	if lyrics_error != nil {
 		logger.Warn("Unable to read response from lyrics request: " + lyrics_error.Error())
-		return ""
+		return lyrics_error
 	}
 	lyrics_response_body, lyrics_error := ioutil.ReadAll(lyrics_response.Body)
 	if lyrics_error != nil {
 		logger.Warn("Unable to get response body: " + lyrics_error.Error())
-		return ""
+		return lyrics_error
 	}
 	lyrics_data := LyricsAPIEntry{}
 	lyrics_error = json.Unmarshal(lyrics_response_body, &lyrics_data)
 	if lyrics_error != nil {
 		logger.Warn("Unable to parse json from response body: " + lyrics_error.Error())
-		return ""
+		return lyrics_error
 	}
-	return lyrics_data.Lyrics
+
+	(*track).Lyrics = lyrics_data.Lyrics
+	return nil
 }
 
 func SeemsType(sequence string, song_type int) bool {

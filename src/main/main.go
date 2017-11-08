@@ -173,7 +173,7 @@ func main() {
 
 	logger.Log("Checking which songs need to be downloaded.")
 	for track_index := len(tracks_online) - 1; track_index >= 0; track_index-- {
-		track := ParseSpotifyTrack(tracks_online[track_index], tracks_online_albums[track_index], !*arg_disable_lyrics)
+		track := ParseSpotifyTrack(tracks_online[track_index], tracks_online_albums[track_index])
 		if !tracks.Has(track) {
 			tracks = append(tracks, track)
 		} else {
@@ -387,6 +387,13 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 			track_artwork_reader, track_artwork_err = ioutil.ReadFile(track.FilenameArtwork())
 			if track_artwork_err != nil {
 				logger.Warn("Unable to read artwork file: " + track_artwork_err.Error())
+			}
+		}
+
+		if !*arg_disable_lyrics {
+			err := (&track).SearchLyrics()
+			if err != nil {
+				logger.Warn("Something went wrong while searching for song \"" + track.Filename + "\" lyrics: " + err.Error())
 			}
 		}
 
