@@ -67,10 +67,10 @@ Failure |   **5%**
 
 #### Download package
 
-- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/deb.png)](#deb) Package for _DEB_-based distributions: [`spotitube.deb`](https://github.com/streambinder/spotitube/releases/latest)
-- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/rpm.png)](#rpm) Package for _RPM_-based distributions: [`spotitube.rpm`](https://github.com/streambinder/spotitube/releases/latest)
-- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/eopkg.png)](#eopkg) Package for _Solus Project_: [`spotitube.eopkg`](https://github.com/streambinder/spotitube/releases/latest)
-- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/bin.png)](#bin) Precompiled binary file: [`spotitube.bin`](https://github.com/streambinder/spotitube/releases/latest)
+- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/deb.png)](#download-package) Package for _DEB_-based distributions: [`spotitube.deb`](https://github.com/streambinder/spotitube/releases/latest)
+- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/rpm.png)](#download-package) Package for _RPM_-based distributions: [`spotitube.rpm`](https://github.com/streambinder/spotitube/releases/latest)
+- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/eopkg.png)](#download-package) Package for _Solus Project_: [`spotitube.eopkg`](https://github.com/streambinder/spotitube/releases/latest)
+- [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/bin.png)](#download-package) Precompiled binary file: [`spotitube.bin`](https://github.com/streambinder/spotitube/releases/latest)
 
 #### Build it yourself
 
