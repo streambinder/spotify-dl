@@ -105,9 +105,10 @@ You may want to use some of the following input flags:
 5. `-disable-update-check`: disable automatic update check at startup.
 6. `-interactive`: enable interactive mode. This allows to eventually override `spotitube` decisions about which _YouTube_ result to pick, prompting for user input on every - legal - song it encounters.
 7. `-flush-metadata`: enable metadata informations flush also for songs that have been already synchronized.
-8. `-replace-local`: replace already downloaded (via `spotitube`) songs, if better ones get encountered.
-9. `-clean-junks`: forcely batch remove temporary files that kept existing for any unattended runtime error.
-10. `-version`: just print installed version.
+8. `-flush-missing`: if `-flush-metadata` toggled, it will just populate empty id3 frames, instead of flushing any of those.
+9. `-replace-local`: replace already downloaded (via `spotitube`) songs, if better ones get encountered.
+10. `-clean-junks`: forcely batch remove temporary files that kept existing for any unattended runtime error.
+11. `-version`: just print installed version.
 
 #### Developers
 
