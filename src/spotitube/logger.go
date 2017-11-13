@@ -49,7 +49,11 @@ func (logger *Logger) ColoredPrefix(color func(a ...interface{}) string, paramet
 	}
 }
 
-func (logger *Logger) LogOpt(message string, level int) {
+func (logger *Logger) Prompt(prompt string) {
+	logger.LogOpt(prompt, LogNormal, true)
+}
+
+func (logger *Logger) LogOpt(message string, level int, no_newline bool) {
 	runtime_caller_name := SHELL_NAME_DEFAULT
 	runtime_caller_col := logger.Color
 
@@ -74,33 +78,39 @@ func (logger *Logger) LogOpt(message string, level int) {
 	if *opt_logfile {
 		logger.LogWrite(logger.Prefix(runtime_caller_name), message)
 	}
-	if level == LogDebug {
-		message = color.MagentaString(message)
-	} else if level == LogWarning {
-		message = color.YellowString(message)
-	} else if level == LogFatal {
-		message = color.RedString(message)
+	var message_parts = strings.Split(message, "\n")
+	for message_part_index, message_part := range message_parts {
+		if level == LogDebug {
+			message_part = color.MagentaString(message_part)
+		} else if level == LogWarning {
+			message_part = color.YellowString(message_part)
+		} else if level == LogFatal {
+			message_part = color.RedString(message_part)
+		}
+		if message_part_index < len(message_parts)-1 || !no_newline {
+			message_part = message_part + "\n"
+		}
+		fmt.Print(logger.ColoredPrefix(runtime_caller_col, runtime_caller_name) + " " + message_part)
 	}
-	fmt.Println(logger.ColoredPrefix(runtime_caller_col, runtime_caller_name), message)
 	if level == LogFatal {
 		os.Exit(1)
 	}
 }
 
 func (logger *Logger) Log(message string) {
-	logger.LogOpt(message, LogNormal)
+	logger.LogOpt(message, LogNormal, false)
 }
 
 func (logger *Logger) Debug(message string) {
-	logger.LogOpt(message, LogDebug)
+	logger.LogOpt(message, LogDebug, false)
 }
 
 func (logger *Logger) Warn(message string) {
-	logger.LogOpt(message, LogWarning)
+	logger.LogOpt(message, LogWarning, false)
 }
 
 func (logger *Logger) Fatal(message string) {
-	logger.LogOpt(message, LogFatal)
+	logger.LogOpt(message, LogFatal, false)
 }
 
 func (logger *Logger) LogWrite(prefix string, message string) {

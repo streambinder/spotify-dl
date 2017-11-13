@@ -39,12 +39,14 @@ func (spotify *Spotify) Auth() bool {
 
 	client_authenticator.SetAuthInfo(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)
 	url := client_authenticator.AuthURL(client_state)
+	logger.Log("I'm trying to open URL for you.")
+	logger.Debug("If something is misbehaving, please visit this URL:\n" + url)
 	command_cmd := "xdg-open"
 	command_args := []string{url}
 	_, err := exec.Command(command_cmd, command_args...).Output()
 	if err != nil {
-		logger.Log("Something went wrong while executing trying to make the default browser open the authorization URL.")
-		logger.Log("Please, in order to authorize me to read your library, go to:\n" + url)
+		logger.Log("Something went wrong while executing trying to make the default browser open the authorization URL.\n" +
+			"Please, open the URL and accept manually.")
 	}
 
 	logger.Log("Waiting for authentication process to complete.")

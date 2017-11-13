@@ -18,8 +18,7 @@ _DEPENDENCIES = \
 	github.com/bogem/id3v2 \
 	github.com/PuerkitoBio/goquery \
 	github.com/fatih/color \
-	github.com/kennygrant/sanitize \
-	github.com/AlecAivazis/survey
+	github.com/kennygrant/sanitize
 
 _CHECK_DEPENDENCIES = $(addsuffix .dependency,$(_DEPENDENCIES))
 

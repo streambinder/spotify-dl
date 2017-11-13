@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AlecAivazis/survey"
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -115,7 +114,10 @@ func (youtube *YouTube) FindTrack(track Track) (YouTubeTrack, error) {
 				" | User: " + youtube_track.User +
 				" | Duration: " + fmt.Sprintf("%d", youtube_track.Duration))
 
-			ans := false
+			var (
+				ans     bool = false
+				ans_err error
+			)
 			ans_automated := (lap == 0 && youtube_track.Match(track, true)) ||
 				(lap == 1 && youtube_track.Match(track, false))
 			if youtube.Interactive {
@@ -125,12 +127,16 @@ func (youtube *YouTube) FindTrack(track Track) (YouTubeTrack, error) {
 				} else {
 					ans_automated_msg = "I wouldn't do it"
 				}
-				prompt := &survey.Confirm{
-					Message: "Do you want to download " + youtube_track.User +
-						"'s video \"" + youtube_track.Title + "\" at \"" + youtube_track.URL +
-						"\" (" + ans_automated_msg + ")?",
+				for {
+					ans, ans_err = WaitForConfirmation("Do you want to download "+youtube_track.User+
+						"'s video \""+youtube_track.Title+"\" at \""+youtube_track.URL+
+						"\" ("+ans_automated_msg+")?", false)
+					if ans_err != nil {
+						logger.Warn(ans_err.Error())
+						continue
+					}
+					break
 				}
-				survey.AskOne(prompt, &ans, nil)
 				if !ans {
 					continue
 				}
