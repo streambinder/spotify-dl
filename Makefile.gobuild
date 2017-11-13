@@ -15,14 +15,6 @@ clean:
 		echo "Done."; \
 	);
 
-%.dependency:
-	@ ( \
-		if [ ! -d $(CUR_DIR)/src/$(subst .dependency,,$@) ]; then \
-			echo "Fetching $(subst .dependency,,$@) dependency"; \
-		fi; \
-		GOPATH=$(CUR_DIR)/ go get $(subst .dependency,,$@) || exit 1; \
-	);
-
 %.compliant:
 	@ ( \
 		cd "$(PROJECT_ROOT)/$(subst .compliant,,$@)" >/dev/null || exit 1; \

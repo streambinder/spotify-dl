@@ -13,20 +13,25 @@ include Makefile.gobuild
 _PKGS = \
 	spotitube
 
-_DEPENDENCIES = \
-	github.com/zmb3/spotify \
-	github.com/bogem/id3v2 \
-	github.com/PuerkitoBio/goquery \
-	github.com/fatih/color \
-	github.com/kennygrant/sanitize
-
 _CHECK_DEPENDENCIES = $(addsuffix .dependency,$(_DEPENDENCIES))
 
 _CHECK_COMPLIANCE = $(addsuffix .compliant,$(_PKGS))
 
 BINS = $(addsuffix .statbin,$(BINARIES))
 
-dependencies: $(_CHECK_DEPENDENCIES)
+dependencies:
+	@ ( \
+		regex_domain='(([a-zA-Z](-?[a-zA-Z0-9])*)\.)*[a-zA-Z](-?[a-zA-Z0-9])+\.[a-zA-Z]{2,}'; \
+		find src -type f  \
+			| egrep -v 'src\/'$$regex_domain'' \
+			| xargs egrep '\"'$$regex_domain'\/.*\/.*\"' \
+			| awk '{ print $$NF }' | grep -v ^$$ | sort -u | sed 's/"//g' | while read dependency; do \
+			if [ ! -d $(CUR_DIR)/src/$$dependency ]; then \
+				echo "Fetching $$dependency dependency"; \
+			fi; \
+			GOPATH=$(CUR_DIR)/ go get $$dependency || exit 1; \
+		done; \
+	);
 
 compliant: $(_CHECK_COMPLIANCE)
 
