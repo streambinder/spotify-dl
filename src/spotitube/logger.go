@@ -25,9 +25,10 @@ type Logger struct {
 func NewLogger() *Logger {
 	return &Logger{
 		Color: color.New(SHELL_COLOR_DEFAULT).SprintFunc(),
-		File:  fmt.Sprintf(DEFAULT_LOG_PATH, time.Now().Format("20060102150405")),
+		File:  DEFAULT_LOG_PATH,
 	}
 }
+
 func (logger *Logger) Prefix(parameters ...string) string {
 	name := SHELL_NAME_DEFAULT
 	if len(parameters) > 0 {
