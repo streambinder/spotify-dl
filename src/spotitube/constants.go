@@ -22,8 +22,9 @@ const (
 	SHELL_COLOR_YOUTUBE   = color.FgRed
 	SHELL_COLOR_SPOTIFY   = color.FgGreen
 
-	DEFAULT_EXTENSION = ".mp3"
-	DEFAULT_TCP_CHECK = "github.com:443"
+	DEFAULT_EXTENSION    = ".mp3"
+	DEFAULT_TCP_CHECK    = "github.com:443"
+	DEFAULT_HTTP_TIMEOUT = 3 // second(s)
 
 	SYSTEM_LETTER_BYTES    = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	SYSTEM_LETTER_IDX_BITS = 6

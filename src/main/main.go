@@ -102,7 +102,7 @@ func main() {
 			Name string `json:"name"`
 		}
 		version_client := http.Client{
-			Timeout: time.Second * 2,
+			Timeout: time.Second * DEFAULT_HTTP_TIMEOUT,
 		}
 		version_request, version_error := http.NewRequest(http.MethodGet, VERSION_ORIGIN, nil)
 		if version_error != nil {

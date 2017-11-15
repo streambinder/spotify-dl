@@ -272,7 +272,7 @@ func (track *Track) SearchLyrics() error {
 		Lyrics string `json:"lyrics"`
 	}
 	lyrics_client := http.Client{
-		Timeout: time.Second * 10,
+		Timeout: time.Second * DEFAULT_HTTP_TIMEOUT,
 	}
 	lyrics_request, lyrics_error := http.NewRequest(http.MethodGet, fmt.Sprintf(LYRICS_API_URL, track.Artist, track.Song), nil)
 	if lyrics_error != nil {
