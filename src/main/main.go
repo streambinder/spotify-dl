@@ -107,35 +107,40 @@ func main() {
 		version_request, version_error := http.NewRequest(http.MethodGet, VERSION_ORIGIN, nil)
 		if version_error != nil {
 			logger.Warn("Unable to compile version request: " + version_error.Error())
+		} else {
+			version_response, version_error := version_client.Do(version_request)
+			if version_error != nil {
+				logger.Warn("Unable to read response from version request: " + version_error.Error())
+			} else {
+				version_response_body, version_error := ioutil.ReadAll(version_response.Body)
+				if version_error != nil {
+					logger.Warn("Unable to get response body: " + version_error.Error())
+				} else {
+					version_data := OnlineVersion{}
+					version_error = json.Unmarshal(version_response_body, &version_data)
+					if version_error != nil {
+						logger.Warn("Unable to parse json from response body: " + version_error.Error())
+					} else {
+						version_value := 0
+						version_regex, version_error := regexp.Compile("[^0-9]+")
+						if version_error != nil {
+							logger.Warn("Unable to compile regex needed to parse version: " + version_error.Error())
+						} else {
+							version_value, version_error = strconv.Atoi(version_regex.ReplaceAllString(version_data.Name, ""))
+							if version_error != nil {
+								logger.Warn("Unable to fetch latest version value: " + version_error.Error())
+							} else if version_value != VERSION {
+								logger.Warn("You're not aligned to the latest available version.\n" +
+									"Although you're not forced to update, new updates mean more solid and better performing software.\n" +
+									"You can find the updated version at: " + VERSION_URL)
+								WaitForInput("Press enter to continue.")
+							}
+							logger.Debug(fmt.Sprintf("Actual version %d, online version %d.", VERSION, version_value))
+						}
+					}
+				}
+			}
 		}
-		version_response, version_error := version_client.Do(version_request)
-		if version_error != nil {
-			logger.Warn("Unable to read response from version request: " + version_error.Error())
-		}
-		version_response_body, version_error := ioutil.ReadAll(version_response.Body)
-		if version_error != nil {
-			logger.Warn("Unable to get response body: " + version_error.Error())
-		}
-		version_data := OnlineVersion{}
-		version_error = json.Unmarshal(version_response_body, &version_data)
-		if version_error != nil {
-			logger.Warn("Unable to parse json from response body: " + version_error.Error())
-		}
-		version_value := 0
-		version_regex, version_error := regexp.Compile("[^0-9]+")
-		if version_error != nil {
-			logger.Warn("Unable to compile regex needed to parse version: " + version_error.Error())
-		}
-		version_value, version_error = strconv.Atoi(version_regex.ReplaceAllString(version_data.Name, ""))
-		if version_error != nil {
-			logger.Warn("Unable to fetch latest version value: " + version_error.Error())
-		} else if version_value != VERSION {
-			logger.Warn("You're not aligned to the latest available version.\n" +
-				"Although you're not forced to update, new updates mean more solid and better performing software.\n" +
-				"You can find the updated version at: " + VERSION_URL)
-			WaitForInput("Press enter to continue.")
-		}
-		logger.Debug(fmt.Sprintf("Actual version %d, online version %d.", VERSION, version_value))
 	}
 
 	if !(IsDir(*arg_folder)) {
