@@ -89,6 +89,7 @@ package_deb: create_out
 
 package_eopkg: create_out
 	@ ( \
+		sudo solbuild update; \
 		cp package/eopkg/pspec.xml{,.orig}; \
 		sed -i 's/:VERSION:/$(VERSION)/g' package/eopkg/pspec.xml; \
 		make x86; \
