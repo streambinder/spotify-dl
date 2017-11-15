@@ -3,6 +3,7 @@ package spotitube
 import (
 	"bufio"
 	"errors"
+	"io"
 	"math/rand"
 	"os"
 	"strings"
@@ -65,6 +66,26 @@ func RandString(n int) string {
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
+}
+
+func FileCopy(path_from string, path_to string) error {
+	path_from_open, err := os.Open(path_from)
+	if err != nil {
+		return err
+	}
+	defer path_from_open.Close()
+
+	path_to_open, err := os.Create(path_to)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(path_to_open, path_from_open); err != nil {
+		path_to_open.Close()
+		return err
+	}
+
+	return path_to_open.Close()
 }
 
 func SyscallLimit(limit *syscall.Rlimit) error {

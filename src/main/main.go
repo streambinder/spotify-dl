@@ -370,7 +370,7 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 	}
 
 	if !FileExists(track.FilenameTemporary()) && FileExists(track.FilenameFinal()) {
-		err := os.Rename(track.FilenameFinal(),
+		err := FileCopy(track.FilenameFinal(),
 			track.FilenameTemporary())
 		if err != nil {
 			logger.Warn("Unable to prepare song for getting its metadata flushed: " + err.Error())
@@ -483,6 +483,7 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 		track_mp3.Close()
 	}
 
+	os.Remove(track.FilenameFinal())
 	err := os.Rename(track.FilenameTemporary(), track.FilenameFinal())
 	if err != nil {
 		logger.Warn("Unable to move song to its final path: " + err.Error())
