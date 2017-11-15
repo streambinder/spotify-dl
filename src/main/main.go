@@ -381,7 +381,7 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 	if (track.Local && *arg_flush_metadata) || !track.Local {
 		var (
 			command_cmd          string   = "ffmpeg"
-			command_args         []string = []string{"-i", track.Image, "-q:v", "1", track.FilenameArtwork()}
+			command_args         []string = []string{"-i", track.Image, "-q:v", "1", track.FilenameArtworkTemporary()}
 			track_artwork_err    error
 			track_artwork_reader []byte
 		)
@@ -389,6 +389,8 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 			_, track_artwork_err = exec.Command(command_cmd, command_args...).Output()
 			if track_artwork_err != nil {
 				logger.Warn("Unable to download artwork file \"" + track.Image + "\": " + track_artwork_err.Error())
+			} else {
+				os.Rename(track.FilenameArtworkTemporary(), track.FilenameArtwork())
 			}
 		} else {
 			track_artwork_err = nil

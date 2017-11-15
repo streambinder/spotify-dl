@@ -27,7 +27,7 @@ const (
 var (
 	SongTypes []int = []int{SongTypeLive, SongTypeCover, SongTypeRemix,
 		SongTypeAcoustic, SongTypeKaraoke, SongTypeParody}
-	JunkWildcards []string = []string{".*.ytdl", ".*.part", ".*.jpg",
+	JunkWildcards []string = []string{".*.ytdl", ".*.part", ".*.jpg", "*.jpg.tmp",
 		".*" + DEFAULT_EXTENSION, ".*" + DEFAULT_EXTENSION + "-id3v2"}
 )
 
@@ -201,6 +201,10 @@ func (track Track) FilenameArtwork() string {
 	return "." + strings.Split(track.Image, "/")[len(strings.Split(track.Image, "/"))-1] + ".jpg"
 }
 
+func (track Track) FilenameArtworkTemporary() string {
+	return "." + strings.Split(track.Image, "/")[len(strings.Split(track.Image, "/"))-1] + ".jpg"
+}
+
 func (track Track) TempFiles() []string {
 	return []string{track.FilenameTemp,
 		track.FilenameTemporary(),
@@ -209,6 +213,7 @@ func (track Track) TempFiles() []string {
 		track.FilenameTemp + ".part*",
 		track.FilenameTemp + ".ytdl",
 		track.FilenameArtwork(),
+		track.FilenameArtwork() + ".tmp",
 	}
 }
 
