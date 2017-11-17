@@ -133,7 +133,7 @@ func main() {
 								logger.Warn("You're not aligned to the latest available version.\n" +
 									"Although you're not forced to update, new updates mean more solid and better performing software.\n" +
 									"You can find the updated version at: " + VERSION_URL)
-								WaitForInput("Press enter to continue.")
+								WaitForInput("Press enter to continue or CTRL+C to exit.")
 							}
 							logger.Debug(fmt.Sprintf("Actual version %d, online version %d.", VERSION, version_value))
 						}
