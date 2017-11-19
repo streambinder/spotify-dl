@@ -269,7 +269,7 @@ func main() {
 		wait_group.Wait()
 
 		if !*arg_disable_timestamp_flush {
-			now := time.Now().Local()
+			now := time.Now().Local().Add(time.Duration(-1*len(tracks)) * time.Minute)
 			for _, track := range tracks {
 				if !FileExists(track.FilenameFinal()) {
 					continue
@@ -277,7 +277,7 @@ func main() {
 				if err := os.Chtimes(track.FilenameFinal(), now, now); err != nil {
 					logger.Warn("Unable to flush timestamp on " + track.FilenameFinal())
 				}
-				now = now.Add(-1 * time.Minute)
+				now = now.Add(1 * time.Minute)
 			}
 		}
 
