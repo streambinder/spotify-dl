@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := all
-PROJECT_ROOT := src/golang
+PROJECT_ROOT := src/
 
 NAME := spotitube
 GOARCH := amd64
