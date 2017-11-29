@@ -1,12 +1,9 @@
 package spotitube
 
 import (
-	"bufio"
-	"errors"
 	"io"
 	"math/rand"
 	"os"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -15,8 +12,6 @@ var (
 	opt_interactive *bool = GetBoolPointer(false)
 	opt_logfile     *bool = GetBoolPointer(false)
 	opt_debug       *bool = GetBoolPointer(false)
-
-	logger *Logger = NewLogger()
 
 	opt_download_path string // TODO: fire this away
 )
@@ -93,26 +88,4 @@ func SyscallLimit(limit *syscall.Rlimit) error {
 		return err
 	}
 	return nil
-}
-
-func WaitForInput(input_prompt string) string {
-	logger.Prompt(input_prompt)
-	input_scanner := bufio.NewScanner(os.Stdin)
-	input_scanner.Scan()
-	return input_scanner.Text()
-}
-
-func WaitForConfirmation(input_prompt string, input_default bool) (bool, error) {
-	if input_default {
-		input_prompt = input_prompt + " [Y/n] "
-	} else {
-		input_prompt = input_prompt + " [y/N] "
-	}
-	input_user := strings.ToLower(string(WaitForInput(input_prompt)[0:1]))
-	if input_user == "y" {
-		return true, nil
-	} else if input_user == "n" {
-		return false, nil
-	}
-	return false, errors.New("Input not allowed, only [yYnN] permitted")
 }

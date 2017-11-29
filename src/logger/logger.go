@@ -1,11 +1,15 @@
 package spotitube
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
 	"strings"
 	"time"
+
+	spttb_system "system"
 
 	"github.com/fatih/color"
 )
@@ -24,17 +28,17 @@ type Logger struct {
 
 func NewLogger() *Logger {
 	return &Logger{
-		Color: color.New(SHELL_COLOR_DEFAULT).SprintFunc(),
-		File:  DEFAULT_LOG_PATH,
+		Color: color.New(spttb_system.SHELL_COLOR_DEFAULT).SprintFunc(),
+		File:  spttb_system.DEFAULT_LOG_PATH,
 	}
 }
 
 func (logger *Logger) Prefix(parameters ...string) string {
-	name := SHELL_NAME_DEFAULT
+	name := spttb_system.SHELL_NAME_DEFAULT
 	if len(parameters) > 0 {
 		name = parameters[0]
 	}
-	space_pre := strings.Repeat(" ", ((SHELL_NAME_MIN_LENGTH - len(name)) / 2))
+	space_pre := strings.Repeat(" ", ((spttb_system.SHELL_NAME_MIN_LENGTH - len(name)) / 2))
 	space_post := space_pre
 	if len(name)%2 == 1 {
 		space_post = space_post + " "
@@ -55,7 +59,7 @@ func (logger *Logger) Prompt(prompt string) {
 }
 
 func (logger *Logger) LogOpt(message string, level int, no_newline bool) {
-	runtime_caller_name := SHELL_NAME_DEFAULT
+	runtime_caller_name := spttb_system.SHELL_NAME_DEFAULT
 	runtime_caller_col := logger.Color
 
 	for index := range []int{1, 2, 3, 4, 5} {
@@ -63,22 +67,24 @@ func (logger *Logger) LogOpt(message string, level int, no_newline bool) {
 		if runtime_caller_details := runtime.FuncForPC(runtime_caller); runtime_ok && runtime_caller_details != nil {
 			if strings.Contains(strings.ToLower(runtime_caller_details.Name()), "spotify") {
 				runtime_caller_name = "spotify"
-				runtime_caller_col = color.New(SHELL_COLOR_SPOTIFY).SprintFunc()
+				runtime_caller_col = color.New(spttb_system.SHELL_COLOR_SPOTIFY).SprintFunc()
 				break
 			} else if strings.Contains(strings.ToLower(runtime_caller_details.Name()), "youtube") {
 				runtime_caller_name = "youtube"
-				runtime_caller_col = color.New(SHELL_COLOR_YOUTUBE).SprintFunc()
+				runtime_caller_col = color.New(spttb_system.SHELL_COLOR_YOUTUBE).SprintFunc()
 				break
 			}
 		}
 	}
 
-	if !(*opt_debug) && level == LogDebug {
-		return
-	}
-	if *opt_logfile {
-		logger.LogWrite(logger.Prefix(runtime_caller_name), message)
-	}
+	// TODO: expose debug mode to logger
+	// if !(*spttb_system.opt_debug) && level == LogDebug {
+	// 	return
+	// }
+	// TODO: expose logfile to logger
+	// if *opt_logfile {
+	// 	logger.LogWrite(logger.Prefix(runtime_caller_name), message)
+	// }
 	var message_parts = strings.Split(message, "\n")
 	for message_part_index, message_part := range message_parts {
 		if level == LogDebug {
@@ -128,14 +134,27 @@ func (logger *Logger) LogWrite(prefix string, message string) {
 }
 
 func (logger *Logger) SetFile(path string) {
-	logger.EnableLogFile()
 	logger.File = path
 }
 
-func (logger *Logger) EnableLogFile() {
-	opt_logfile = GetBoolPointer(true)
+func (logger *Logger) WaitForInput(input_prompt string) string {
+	logger.Prompt(input_prompt)
+	input_scanner := bufio.NewScanner(os.Stdin)
+	input_scanner.Scan()
+	return input_scanner.Text()
 }
 
-func (logger *Logger) EnableDebug() {
-	opt_debug = GetBoolPointer(true)
+func (logger *Logger) WaitForConfirmation(input_prompt string, input_default bool) (bool, error) {
+	if input_default {
+		input_prompt = input_prompt + " [Y/n] "
+	} else {
+		input_prompt = input_prompt + " [y/N] "
+	}
+	input_user := strings.ToLower(string(logger.WaitForInput(input_prompt)[0:1]))
+	if input_user == "y" {
+		return true, nil
+	} else if input_user == "n" {
+		return false, nil
+	}
+	return false, errors.New("Input not allowed, only [yYnN] permitted")
 }

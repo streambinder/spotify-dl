@@ -2,12 +2,15 @@ package spotitube
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	spttb_system "system"
 
 	"github.com/bogem/id3v2"
 	"github.com/kennygrant/sanitize"
@@ -28,7 +31,7 @@ var (
 	SongTypes []int = []int{SongTypeLive, SongTypeCover, SongTypeRemix,
 		SongTypeAcoustic, SongTypeKaraoke, SongTypeParody}
 	JunkWildcards []string = []string{".*.ytdl", ".*.part", ".*.jpg", "*.jpg.tmp",
-		".*" + DEFAULT_EXTENSION, ".*" + DEFAULT_EXTENSION + "-id3v2"}
+		".*" + spttb_system.DEFAULT_EXTENSION, ".*" + spttb_system.DEFAULT_EXTENSION + "-id3v2"}
 )
 
 type Track struct {
@@ -113,7 +116,7 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 		URL:           "",
 		Filename:      "",
 		FilenameTemp:  "",
-		FilenameExt:   DEFAULT_EXTENSION,
+		FilenameExt:   spttb_system.DEFAULT_EXTENSION,
 		SearchPattern: "",
 		Lyrics:        "",
 		Local:         false,
@@ -178,7 +181,7 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 
 	track.SearchPattern = strings.Replace(track.FilenameTemp[1:], "-", " ", -1)
 
-	if FileExists(track.FilenameFinal()) {
+	if spttb_system.FileExists(track.FilenameFinal()) {
 		track.Local = true
 	}
 
@@ -277,29 +280,25 @@ func (track *Track) SearchLyrics() error {
 		Lyrics string `json:"lyrics"`
 	}
 	lyrics_client := http.Client{
-		Timeout: time.Second * DEFAULT_HTTP_TIMEOUT,
+		Timeout: time.Second * spttb_system.DEFAULT_HTTP_TIMEOUT,
 	}
-	lyrics_request, lyrics_error := http.NewRequest(http.MethodGet, fmt.Sprintf(LYRICS_API_URL, track.Artist, track.Song), nil)
+	lyrics_request, lyrics_error := http.NewRequest(http.MethodGet,
+		fmt.Sprintf(spttb_system.LYRICS_API_URL, track.Artist, track.Song), nil)
 	if lyrics_error != nil {
-		logger.Warn("Unable to compile lyrics request: " + lyrics_error.Error())
-		return lyrics_error
+		return errors.New("Unable to compile lyrics request: " + lyrics_error.Error())
 	}
 	lyrics_response, lyrics_error := lyrics_client.Do(lyrics_request)
 	if lyrics_error != nil {
-		logger.Warn("Unable to read response from lyrics request: " + lyrics_error.Error())
-		return lyrics_error
+		return errors.New("Unable to read response from lyrics request: " + lyrics_error.Error())
 	}
 	lyrics_response_body, lyrics_error := ioutil.ReadAll(lyrics_response.Body)
 	if lyrics_error != nil {
-		logger.Warn("Unable to get response body: " + lyrics_error.Error())
-		return lyrics_error
+		return errors.New("Unable to get response body: " + lyrics_error.Error())
 	}
 	lyrics_data := LyricsAPIEntry{}
 	lyrics_error = json.Unmarshal(lyrics_response_body, &lyrics_data)
 	if lyrics_error != nil {
-		logger.Warn("Unable to parse json from response body: " + lyrics_error.Error())
-		logger.Debug("Lyrics response body: " + string(lyrics_response_body[:]))
-		return lyrics_error
+		return errors.New("Unable to parse json from response body: " + lyrics_error.Error())
 	}
 
 	(*track).Lyrics = lyrics_data.Lyrics
@@ -310,7 +309,7 @@ func SeemsType(sequence string, song_type int) bool {
 	var song_type_aliases []string
 	if song_type == SongTypeLive {
 		song_type_aliases = []string{"@", "live", "perform", "tour"}
-		for _, year := range MakeRange(1950, 2050) {
+		for _, year := range spttb_system.MakeRange(1950, 2050) {
 			song_type_aliases = append(song_type_aliases, []string{strconv.Itoa(year), "'" + strconv.Itoa(year)[2:]}...)
 		}
 	} else if song_type == SongTypeCover {

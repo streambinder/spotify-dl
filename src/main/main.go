@@ -20,9 +20,14 @@ import (
 	"syscall"
 	"time"
 
+	spttb_logger "logger"
+	spttb_spotify "spotify"
+	spttb_system "system"
+	spttb_track "track"
+	spttb_youtube "youtube"
+
 	id3 "github.com/bogem/id3v2"
 	api "github.com/zmb3/spotify"
-	. "spotitube"
 )
 
 var (
@@ -43,12 +48,12 @@ var (
 	arg_simulate                *bool
 	arg_version                 *bool
 
-	tracks           Tracks
-	tracks_failed    Tracks
+	tracks           spttb_track.Tracks
+	tracks_failed    spttb_track.Tracks
 	playlist_info    *api.FullPlaylist
-	youtube_client   *YouTube = NewYouTubeClient()
-	spotify_client   *Spotify = NewSpotifyClient()
-	logger           *Logger  = NewLogger()
+	youtube_client   *spttb_youtube.YouTube = spttb_youtube.NewClient()
+	spotify_client   *spttb_spotify.Spotify = spttb_spotify.NewClient()
+	logger           *spttb_logger.Logger   = spttb_logger.NewLogger()
 	wait_group       sync.WaitGroup
 	wait_group_limit syscall.Rlimit
 )
@@ -73,7 +78,7 @@ func main() {
 	flag.Parse()
 
 	if *arg_version {
-		fmt.Println(fmt.Sprintf("SpotiTube, version %d.", VERSION))
+		fmt.Println(fmt.Sprintf("SpotiTube, version %d.", spttb_system.VERSION))
 		os.Exit(0)
 	}
 
@@ -84,27 +89,28 @@ func main() {
 		}
 	}
 
-	_, err := net.Dial("tcp", DEFAULT_TCP_CHECK)
+	_, err := net.Dial("tcp", spttb_system.DEFAULT_TCP_CHECK)
 	if err != nil {
 		logger.Fatal("Are you sure you're connected to the internet?")
 	}
 
 	if *arg_log {
-		logger.SetFile(DEFAULT_LOG_PATH)
+		logger.SetFile(spttb_system.DEFAULT_LOG_PATH)
 	}
 
-	if *arg_debug {
-		logger.EnableDebug()
-	}
+	// TODO: pass debug to logger
+	// if *arg_debug {
+	// 	logger.EnableDebug()
+	// }
 
 	if !*arg_disable_update_check {
 		type OnlineVersion struct {
 			Name string `json:"name"`
 		}
 		version_client := http.Client{
-			Timeout: time.Second * DEFAULT_HTTP_TIMEOUT,
+			Timeout: time.Second * spttb_system.DEFAULT_HTTP_TIMEOUT,
 		}
-		version_request, version_error := http.NewRequest(http.MethodGet, VERSION_ORIGIN, nil)
+		version_request, version_error := http.NewRequest(http.MethodGet, spttb_system.VERSION_ORIGIN, nil)
 		if version_error != nil {
 			logger.Warn("Unable to compile version request: " + version_error.Error())
 		} else {
@@ -129,13 +135,13 @@ func main() {
 							version_value, version_error = strconv.Atoi(version_regex.ReplaceAllString(version_data.Name, ""))
 							if version_error != nil {
 								logger.Warn("Unable to fetch latest version value: " + version_error.Error())
-							} else if version_value != VERSION {
+							} else if version_value != spttb_system.VERSION {
 								logger.Warn("You're not aligned to the latest available version.\n" +
 									"Although you're not forced to update, new updates mean more solid and better performing software.\n" +
-									"You can find the updated version at: " + VERSION_URL)
-								WaitForInput("Press enter to continue or CTRL+C to exit.")
+									"You can find the updated version at: " + spttb_system.VERSION_URL)
+								logger.WaitForInput("Press enter to continue or CTRL+C to exit.")
 							}
-							logger.Debug(fmt.Sprintf("Actual version %d, online version %d.", VERSION, version_value))
+							logger.Debug(fmt.Sprintf("Actual version %d, online version %d.", spttb_system.VERSION, version_value))
 						}
 					}
 				}
@@ -143,7 +149,7 @@ func main() {
 		}
 	}
 
-	if !(IsDir(*arg_folder)) {
+	if !(spttb_system.IsDir(*arg_folder)) {
 		logger.Fatal("Chosen music folder does not exist: " + *arg_folder)
 	} else {
 		os.Chdir(*arg_folder)
@@ -183,7 +189,7 @@ func main() {
 
 	logger.Log("Checking which songs need to be downloaded.")
 	for track_index := len(tracks_online) - 1; track_index >= 0; track_index-- {
-		track := ParseSpotifyTrack(tracks_online[track_index], tracks_online_albums[track_index])
+		track := spttb_track.ParseSpotifyTrack(tracks_online[track_index], tracks_online_albums[track_index])
 		if !tracks.Has(track) {
 			tracks = append(tracks, track)
 		} else {
@@ -252,7 +258,7 @@ func main() {
 			}
 
 			for true {
-				err := SyscallLimit(&wait_group_limit)
+				err := spttb_system.SyscallLimit(&wait_group_limit)
 				if err == nil && wait_group_limit.Cur < (wait_group_limit.Max-50) {
 					break
 				}
@@ -271,7 +277,7 @@ func main() {
 		if !*arg_disable_timestamp_flush {
 			now := time.Now().Local().Add(time.Duration(-1*len(tracks)) * time.Minute)
 			for _, track := range tracks {
-				if !FileExists(track.FilenameFinal()) {
+				if !spttb_system.FileExists(track.FilenameFinal()) {
 					continue
 				}
 				if err := os.Chtimes(track.FilenameFinal(), now, now); err != nil {
@@ -282,13 +288,13 @@ func main() {
 		}
 
 		if !*arg_simulate && !*arg_disable_m3u && *arg_playlist != "none" {
-			if FileExists(playlist_info.Name + ".m3u") {
+			if spttb_system.FileExists(playlist_info.Name + ".m3u") {
 				os.Remove(playlist_info.Name + ".m3u")
 			}
 			playlist_m3u := "#EXTM3U\n"
 			for track_index := len(tracks) - 1; track_index >= 0; track_index-- {
 				track := tracks[track_index]
-				if FileExists(track.FilenameFinal()) {
+				if spttb_system.FileExists(track.FilenameFinal()) {
 					playlist_m3u = playlist_m3u + "#EXTINF:" + strconv.Itoa(track.Duration) + "," + track.Filename + "\n" +
 						track.FilenameFinal() + "\n"
 				}
@@ -322,7 +328,7 @@ func main() {
 	wait_group.Wait()
 }
 
-func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
+func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	if !track.Local && !*arg_disable_normalization {
@@ -369,8 +375,8 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 		os.Rename(normalization_file, track.FilenameTemporary())
 	}
 
-	if !FileExists(track.FilenameTemporary()) && FileExists(track.FilenameFinal()) {
-		err := FileCopy(track.FilenameFinal(),
+	if !spttb_system.FileExists(track.FilenameTemporary()) && spttb_system.FileExists(track.FilenameFinal()) {
+		err := spttb_system.FileCopy(track.FilenameFinal(),
 			track.FilenameTemporary())
 		if err != nil {
 			logger.Warn("Unable to prepare song for getting its metadata flushed: " + err.Error())
@@ -385,7 +391,7 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 			track_artwork_err    error
 			track_artwork_reader []byte
 		)
-		if !FileExists(track.FilenameArtwork()) {
+		if !spttb_system.FileExists(track.FilenameArtwork()) {
 			_, track_artwork_err = exec.Command(command_cmd, command_args...).Output()
 			if track_artwork_err != nil {
 				logger.Warn("Unable to download artwork file \"" + track.Image + "\": " + track_artwork_err.Error())
@@ -493,7 +499,7 @@ func ParallelSongProcess(track Track, wg *sync.WaitGroup) {
 func CleanJunks() {
 	logger.Log("Cleaning up junks")
 	var removed_junks int
-	for _, junk_type := range JunkWildcards {
+	for _, junk_type := range spttb_track.JunkWildcards {
 		junk_paths, err := filepath.Glob(junk_type)
 		if err != nil {
 			logger.Warn("Something wrong while searching for \"" + junk_type + "\" junk files: " + err.Error())
