@@ -1,4 +1,4 @@
-package spotitube
+package spotify
 
 import (
 	"fmt"

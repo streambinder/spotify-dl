@@ -20,13 +20,13 @@ import (
 	"syscall"
 	"time"
 
-	spttb_logger "logger"
 	spttb_spotify "spotify"
 	spttb_system "system"
 	spttb_track "track"
 	spttb_youtube "youtube"
 
 	id3 "github.com/bogem/id3v2"
+	cui "github.com/jroimartin/gocui"
 	api "github.com/zmb3/spotify"
 )
 
@@ -53,9 +53,17 @@ var (
 	playlist_info    *api.FullPlaylist
 	youtube_client   *spttb_youtube.YouTube = spttb_youtube.NewClient()
 	spotify_client   *spttb_spotify.Spotify = spttb_spotify.NewClient()
-	logger           *spttb_logger.Logger   = spttb_logger.NewLogger()
 	wait_group       sync.WaitGroup
 	wait_group_limit syscall.Rlimit
+
+	gui                 *cui.Gui
+	gui_err             error
+	gui_ready           chan bool
+	gui_view_lefttop    *cui.View
+	gui_view_leftbottom *cui.View
+	gui_view_right      *cui.View
+	gui_max_weight      int
+	gui_max_height      int
 )
 
 func main() {
@@ -77,6 +85,20 @@ func main() {
 	arg_version = flag.Bool("version", false, "Print version")
 	flag.Parse()
 
+	if !(spttb_system.IsDir(*arg_folder)) {
+		// logger.Fatal("Chosen music folder does not exist: " + *arg_folder)
+	} else {
+		*arg_folder, _ = filepath.Abs(*arg_folder)
+		os.Chdir(*arg_folder)
+		// logger.Log("Synchronization folder: " + *arg_folder)
+	}
+
+	gui_ready = make(chan bool)
+	go GuiBuild()
+	<-gui_ready
+	defer gui.Close()
+	time.Sleep(3)
+
 	if *arg_version {
 		fmt.Println(fmt.Sprintf("SpotiTube, version %d.", spttb_system.VERSION))
 		os.Exit(0)
@@ -85,22 +107,22 @@ func main() {
 	for _, command_name := range []string{"youtube-dl", "ffmpeg"} {
 		_, err := exec.LookPath(command_name)
 		if err != nil {
-			logger.Fatal("Are you sure " + command_name + " is actually installed?")
+			// logger.Fatal("Are you sure " + command_name + " is actually installed?")
 		}
 	}
 
 	_, err := net.Dial("tcp", spttb_system.DEFAULT_TCP_CHECK)
 	if err != nil {
-		logger.Fatal("Are you sure you're connected to the internet?")
+		// logger.Fatal("Are you sure you're connected to the internet?")
 	}
 
 	if *arg_log {
-		logger.SetFile(spttb_system.DEFAULT_LOG_PATH)
+		// logger.SetFile(spttb_system.DEFAULT_LOG_PATH)
 	}
 
 	// TODO: pass debug to logger
 	// if *arg_debug {
-	// 	logger.EnableDebug()
+	// 	// logger.EnableDebug()
 	// }
 
 	if !*arg_disable_update_check {
@@ -112,36 +134,36 @@ func main() {
 		}
 		version_request, version_error := http.NewRequest(http.MethodGet, spttb_system.VERSION_ORIGIN, nil)
 		if version_error != nil {
-			logger.Warn("Unable to compile version request: " + version_error.Error())
+			// logger.Warn("Unable to compile version request: " + version_error.Error())
 		} else {
 			version_response, version_error := version_client.Do(version_request)
 			if version_error != nil {
-				logger.Warn("Unable to read response from version request: " + version_error.Error())
+				// logger.Warn("Unable to read response from version request: " + version_error.Error())
 			} else {
 				version_response_body, version_error := ioutil.ReadAll(version_response.Body)
 				if version_error != nil {
-					logger.Warn("Unable to get response body: " + version_error.Error())
+					// logger.Warn("Unable to get response body: " + version_error.Error())
 				} else {
 					version_data := OnlineVersion{}
 					version_error = json.Unmarshal(version_response_body, &version_data)
 					if version_error != nil {
-						logger.Warn("Unable to parse json from response body: " + version_error.Error())
+						// logger.Warn("Unable to parse json from response body: " + version_error.Error())
 					} else {
 						version_value := 0
 						version_regex, version_error := regexp.Compile("[^0-9]+")
 						if version_error != nil {
-							logger.Warn("Unable to compile regex needed to parse version: " + version_error.Error())
+							// logger.Warn("Unable to compile regex needed to parse version: " + version_error.Error())
 						} else {
 							version_value, version_error = strconv.Atoi(version_regex.ReplaceAllString(version_data.Name, ""))
 							if version_error != nil {
-								logger.Warn("Unable to fetch latest version value: " + version_error.Error())
+								// logger.Warn("Unable to fetch latest version value: " + version_error.Error())
 							} else if version_value != spttb_system.VERSION {
-								logger.Warn("You're not aligned to the latest available version.\n" +
-									"Although you're not forced to update, new updates mean more solid and better performing software.\n" +
-									"You can find the updated version at: " + spttb_system.VERSION_URL)
-								logger.WaitForInput("Press enter to continue or CTRL+C to exit.")
+								// logger.Warn("You're not aligned to the latest available version.\n" +
+								// "Although you're not forced to update, new updates mean more solid and better performing software.\n" +
+								// "You can find the updated version at: " + spttb_system.VERSION_URL)
+								// logger.WaitForInput("Press enter to continue or CTRL+C to exit.")
 							}
-							logger.Debug(fmt.Sprintf("Actual version %d, online version %d.", spttb_system.VERSION, version_value))
+							// logger.Debug(fmt.Sprintf("Actual version %d, online version %d.", spttb_system.VERSION, version_value))
 						}
 					}
 				}
@@ -149,21 +171,14 @@ func main() {
 		}
 	}
 
-	if !(spttb_system.IsDir(*arg_folder)) {
-		logger.Fatal("Chosen music folder does not exist: " + *arg_folder)
-	} else {
-		os.Chdir(*arg_folder)
-		logger.Log("Synchronization folder: " + *arg_folder)
-	}
-
 	if *arg_clean_junks {
 		CleanJunks()
 		return
 	}
 
-	if !spotify_client.Auth() {
-		logger.Fatal("Unable to authenticate to spotify.")
-	}
+	// if !spotify_client.Auth() {
+	// logger.Fatal("Unable to authenticate to spotify.")
+	// }
 
 	var (
 		tracks_online            []api.FullTrack
@@ -176,9 +191,9 @@ func main() {
 		var playlist_err error
 		playlist_info, playlist_err = spotify_client.Playlist(*arg_playlist)
 		if playlist_err != nil {
-			logger.Fatal("Something went wrong while fetching playlist info.")
+			// logger.Fatal("Something went wrong while fetching playlist info.")
 		} else {
-			logger.Log("Getting songs from \"" + playlist_info.Name + "\" playlist, by \"" + playlist_info.Owner.DisplayName + "\"")
+			// logger.Log("Getting songs from \"" + playlist_info.Name + "\" playlist, by \"" + playlist_info.Owner.DisplayName + "\"")
 			tracks_online = spotify_client.PlaylistTracks(*arg_playlist)
 		}
 	}
@@ -187,13 +202,13 @@ func main() {
 	}
 	tracks_online_albums = spotify_client.Albums(tracks_online_albums_ids)
 
-	logger.Log("Checking which songs need to be downloaded.")
+	// logger.Log("Checking which songs need to be downloaded.")
 	for track_index := len(tracks_online) - 1; track_index >= 0; track_index-- {
 		track := spttb_track.ParseSpotifyTrack(tracks_online[track_index], tracks_online_albums[track_index])
 		if !tracks.Has(track) {
 			tracks = append(tracks, track)
 		} else {
-			logger.Warn("Ignored song duplicate \"" + track.Filename + "\".")
+			// logger.Warn("Ignored song duplicate \"" + track.Filename + "\".")
 		}
 	}
 
@@ -201,40 +216,40 @@ func main() {
 	signal.Notify(ch, os.Interrupt)
 	go func() {
 		<-ch
-		logger.Log("SIGINT captured: cleaning up temporary files.")
+		// logger.Log("SIGINT captured: cleaning up temporary files.")
 		for _, track := range tracks {
 			for _, track_filename := range track.TempFiles() {
 				os.Remove(track_filename)
 			}
 		}
-		logger.Fatal("Explicit closure request by the user. Exiting.")
+		// logger.Fatal("Explicit closure request by the user. Exiting.")
 	}()
 
 	if len(tracks) > 0 {
 		youtube_client.SetInteractive(*arg_interactive)
 		if *arg_replace_local {
-			logger.Log(strconv.Itoa(len(tracks)) + " missing songs.")
+			// logger.Log(strconv.Itoa(len(tracks)) + " missing songs.")
 		} else if *arg_flush_metadata {
-			logger.Log(strconv.Itoa(tracks.CountOnline()) + " missing songs, " +
-				"flushing metadata for " + strconv.Itoa(tracks.CountOffline()) + " local ones.")
+			// logger.Log(strconv.Itoa(tracks.CountOnline()) + " missing songs, " +
+			// "flushing metadata for " + strconv.Itoa(tracks.CountOffline()) + " local ones.")
 		} else {
-			logger.Log(strconv.Itoa(tracks.CountOnline()) + " missing songs, " +
-				strconv.Itoa(tracks.CountOffline()) + " ignored.")
+			// logger.Log(strconv.Itoa(tracks.CountOnline()) + " missing songs, " +
+			// strconv.Itoa(tracks.CountOffline()) + " ignored.")
 		}
-		for track_index, track := range tracks {
-			logger.Log(strconv.Itoa(track_index+1) + "/" + strconv.Itoa(len(tracks)) + ": \"" + track.Filename + "\"")
+		for _, track := range tracks {
+			// logger.Log(strconv.Itoa(track_index+1) + "/" + strconv.Itoa(len(tracks)) + ": \"" + track.Filename + "\"")
 			if !track.Local || *arg_replace_local || *arg_simulate {
 				youtube_track, err := youtube_client.FindTrack(track)
 				if err != nil {
-					logger.Warn("Something went wrong while searching for \"" + track.Filename + "\" track: " + err.Error() + ".")
+					// logger.Warn("Something went wrong while searching for \"" + track.Filename + "\" track: " + err.Error() + ".")
 					tracks_failed = append(tracks_failed, track)
 					continue
 				} else if *arg_simulate {
-					logger.Log("I would like to download \"" + youtube_track.URL + "\" for \"" + track.Filename + "\" track, but I'm just simulating.")
+					// logger.Log("I would like to download \"" + youtube_track.URL + "\" for \"" + track.Filename + "\" track, but I'm just simulating.")
 					continue
 				} else if *arg_replace_local {
 					if track.URL == youtube_track.URL {
-						logger.Log("Track \"" + track.Filename + "\" is still the best result I can find.")
+						// logger.Log("Track \"" + track.Filename + "\" is still the best result I can find.")
 						continue
 					} else {
 						track.URL = ""
@@ -245,7 +260,7 @@ func main() {
 
 				err = youtube_track.Download()
 				if err != nil {
-					logger.Warn("Something went wrong downloading \"" + track.Filename + "\": " + err.Error() + ".")
+					// logger.Warn("Something went wrong downloading \"" + track.Filename + "\": " + err.Error() + ".")
 					tracks_failed = append(tracks_failed, track)
 					continue
 				} else {
@@ -262,7 +277,7 @@ func main() {
 				if err == nil && wait_group_limit.Cur < (wait_group_limit.Max-50) {
 					break
 				}
-				logger.Warn(fmt.Sprintf("%d < %d-10", wait_group_limit.Cur, wait_group_limit.Max))
+				// logger.Warn(fmt.Sprintf("%d < %d-10", wait_group_limit.Cur, wait_group_limit.Max))
 				time.Sleep(100 * time.Millisecond)
 			}
 
@@ -281,7 +296,7 @@ func main() {
 					continue
 				}
 				if err := os.Chtimes(track.FilenameFinal(), now, now); err != nil {
-					logger.Warn("Unable to flush timestamp on " + track.FilenameFinal())
+					// logger.Warn("Unable to flush timestamp on " + track.FilenameFinal())
 				}
 				now = now.Add(1 * time.Minute)
 			}
@@ -301,13 +316,13 @@ func main() {
 			}
 			playlist_m3u_file, playlist_err := os.Create(playlist_info.Name + ".m3u")
 			if playlist_err != nil {
-				logger.Warn("Unable to create M3U file: " + playlist_err.Error())
+				// logger.Warn("Unable to create M3U file: " + playlist_err.Error())
 			} else {
 				defer playlist_m3u_file.Close()
 				_, playlist_err := playlist_m3u_file.WriteString(playlist_m3u)
 				playlist_m3u_file.Sync()
 				if playlist_err != nil {
-					logger.Warn("Unable to write M3U file: " + playlist_err.Error())
+					// logger.Warn("Unable to write M3U file: " + playlist_err.Error())
 				}
 			}
 		}
@@ -315,15 +330,15 @@ func main() {
 		CleanJunks()
 
 		if len(tracks_failed) > 0 {
-			logger.Log("Synchronization partially completed, " + strconv.Itoa(len(tracks_failed)) + " tracks failed to synchronize:")
-			for _, track := range tracks_failed {
-				logger.Log(" - \"" + track.Filename + "\"")
-			}
+			// logger.Log("Synchronization partially completed, " + strconv.Itoa(len(tracks_failed)) + " tracks failed to synchronize:")
+			// for _, track := range tracks_failed {
+			// logger.Log(" - \"" + track.Filename + "\"")
+			// }
 		} else {
-			logger.Log("Synchronization completed.")
+			// logger.Log("Synchronization completed.")
 		}
 	} else {
-		logger.Log("No song needs to be downloaded.")
+		// logger.Log("No song needs to be downloaded.")
 	}
 	wait_group.Wait()
 }
@@ -343,12 +358,12 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 		)
 
 		command_args = []string{"-i", track.FilenameTemporary(), "-af", "volumedetect", "-f", "null", "-y", "null"}
-		logger.Debug("Getting max_volume value: \"" + command_cmd + " " + strings.Join(command_args, " ") + "\".")
+		// logger.Debug("Getting max_volume value: \"" + command_cmd + " " + strings.Join(command_args, " ") + "\".")
 		command_obj := exec.Command(command_cmd, command_args...)
 		command_obj.Stderr = &command_out
 		command_err = command_obj.Run()
 		if command_err != nil {
-			logger.Warn("Unable to use ffmpeg to pull max_volume song value: " + command_out.String() + ".")
+			// logger.Warn("Unable to use ffmpeg to pull max_volume song value: " + command_out.String() + ".")
 			normalization_delta = "0.0"
 		} else {
 			command_scanner := bufio.NewScanner(strings.NewReader(command_out.String()))
@@ -361,15 +376,15 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 		}
 
 		if _, command_err = strconv.ParseFloat(normalization_delta, 64); command_err != nil {
-			logger.Warn("Unable to pull max_volume delta to be applied along with song volume normalization: " + normalization_delta + ".")
+			// logger.Warn("Unable to pull max_volume delta to be applied along with song volume normalization: " + normalization_delta + ".")
 			normalization_delta = "0.0"
 		}
 		command_args = []string{"-i", track.FilenameTemporary(), "-af", "volume=+" + normalization_delta + "dB", "-b:a", "320k", "-y", normalization_file}
-		logger.Debug("Going to compensate volume by " + normalization_delta + "dB")
-		logger.Log("Increasing audio quality for: " + track.Filename + ".")
-		logger.Debug("Using command: \"" + command_cmd + " " + strings.Join(command_args, " ") + "\"")
+		// logger.Debug("Going to compensate volume by " + normalization_delta + "dB")
+		// logger.Log("Increasing audio quality for: " + track.Filename + ".")
+		// logger.Debug("Using command: \"" + command_cmd + " " + strings.Join(command_args, " ") + "\"")
 		if _, command_err = exec.Command(command_cmd, command_args...).Output(); command_err != nil {
-			logger.Warn("Something went wrong while normalizing song \"" + track.Filename + "\" volume: " + command_err.Error())
+			// logger.Warn("Something went wrong while normalizing song \"" + track.Filename + "\" volume: " + command_err.Error())
 		}
 		os.Remove(track.FilenameTemporary())
 		os.Rename(normalization_file, track.FilenameTemporary())
@@ -379,7 +394,7 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 		err := spttb_system.FileCopy(track.FilenameFinal(),
 			track.FilenameTemporary())
 		if err != nil {
-			logger.Warn("Unable to prepare song for getting its metadata flushed: " + err.Error())
+			// logger.Warn("Unable to prepare song for getting its metadata flushed: " + err.Error())
 			return
 		}
 	}
@@ -394,33 +409,33 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 		if !spttb_system.FileExists(track.FilenameArtwork()) {
 			_, track_artwork_err = exec.Command(command_cmd, command_args...).Output()
 			if track_artwork_err != nil {
-				logger.Warn("Unable to download artwork file \"" + track.Image + "\": " + track_artwork_err.Error())
+				// logger.Warn("Unable to download artwork file \"" + track.Image + "\": " + track_artwork_err.Error())
 			} else {
 				os.Rename(track.FilenameArtworkTemporary(), track.FilenameArtwork())
 			}
 		} else {
 			track_artwork_err = nil
-			logger.Debug("Reusing already download album \"" + track.Album + "\" artwork")
+			// logger.Debug("Reusing already download album \"" + track.Album + "\" artwork")
 		}
 		if track_artwork_err == nil {
 			track_artwork_reader, track_artwork_err = ioutil.ReadFile(track.FilenameArtwork())
 			if track_artwork_err != nil {
-				logger.Warn("Unable to read artwork file: " + track_artwork_err.Error())
+				// logger.Warn("Unable to read artwork file: " + track_artwork_err.Error())
 			}
 		}
 
 		if !*arg_disable_lyrics {
 			err := (&track).SearchLyrics()
 			if err != nil {
-				logger.Warn("Something went wrong while searching for song \"" + track.Filename + "\" lyrics: " + err.Error())
+				// logger.Warn("Something went wrong while searching for song \"" + track.Filename + "\" lyrics: " + err.Error())
 			}
 		}
 
 		track_mp3, err := id3.Open(track.FilenameTemporary(), id3.Options{Parse: true})
 		if track_mp3 == nil || err != nil {
-			logger.Fatal("Something bad happened while opening: " + err.Error())
+			// logger.Fatal("Something bad happened while opening: " + err.Error())
 		} else {
-			logger.Log("Fixing metadata for: " + track.Filename + ".")
+			// logger.Log("Fixing metadata for: " + track.Filename + ".")
 			if !*arg_flush_missing {
 				track_mp3.DeleteAllFrames()
 			}
@@ -450,7 +465,7 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 			if track_artwork_err == nil {
 				if !*arg_flush_missing ||
 					len(track_mp3.GetFrames(track_mp3.CommonID("Attached picture"))) == 0 {
-					logger.Debug("Inflating artwork metadata...")
+					// logger.Debug("Inflating artwork metadata...")
 					track_mp3.AddAttachedPicture(id3.PictureFrame{
 						Encoding:    id3.EncodingUTF8,
 						MimeType:    "image/jpeg",
@@ -463,7 +478,7 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 			if len(track.URL) > 0 {
 				if !*arg_flush_missing ||
 					len(track_mp3.GetFrames(track_mp3.CommonID("Comments"))) == 0 {
-					logger.Debug("Inflating youtube origin url metadata...")
+					// logger.Debug("Inflating youtube origin url metadata...")
 					track_mp3.AddCommentFrame(id3.CommentFrame{
 						Encoding:    id3.EncodingUTF8,
 						Language:    "eng",
@@ -475,7 +490,7 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 			if len(track.Lyrics) > 0 {
 				if !*arg_flush_missing ||
 					len(track_mp3.GetFrames(track_mp3.CommonID("Unsynchronised lyrics/text transcription"))) == 0 {
-					logger.Debug("Inflating lyrics metadata...")
+					// logger.Debug("Inflating lyrics metadata...")
 					track_mp3.AddUnsynchronisedLyricsFrame(id3.UnsynchronisedLyricsFrame{
 						Encoding:          id3.EncodingUTF8,
 						Language:          "eng",
@@ -492,24 +507,108 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 	os.Remove(track.FilenameFinal())
 	err := os.Rename(track.FilenameTemporary(), track.FilenameFinal())
 	if err != nil {
-		logger.Warn("Unable to move song to its final path: " + err.Error())
+		// logger.Warn("Unable to move song to its final path: " + err.Error())
 	}
 }
 
 func CleanJunks() {
-	logger.Log("Cleaning up junks")
+	// logger.Log("Cleaning up junks")
 	var removed_junks int
 	for _, junk_type := range spttb_track.JunkWildcards {
 		junk_paths, err := filepath.Glob(junk_type)
 		if err != nil {
-			logger.Warn("Something wrong while searching for \"" + junk_type + "\" junk files: " + err.Error())
+			// logger.Warn("Something wrong while searching for \"" + junk_type + "\" junk files: " + err.Error())
 			continue
 		}
 		for _, junk_path := range junk_paths {
-			logger.Debug("Removing " + junk_path + "...")
+			// logger.Debug("Removing " + junk_path + "...")
 			os.Remove(junk_path)
 			removed_junks++
 		}
 	}
-	logger.Log("Removed " + strconv.Itoa(removed_junks) + " files.")
+	// logger.Log("Removed " + strconv.Itoa(removed_junks) + " files.")
+}
+
+func GuiBuild() {
+	gui, gui_err = cui.NewGui(cui.OutputNormal)
+	if gui_err != nil {
+		// logger.Fatal(gui_err.Error())
+	}
+	defer gui.Close()
+
+	gui_max_weight, gui_max_height = gui.Size()
+
+	gui.SetManagerFunc(GuiSTDLayout)
+
+	if gui_err = gui.SetKeybinding("", cui.KeyCtrlC, cui.ModNone, GuiClose); gui_err != nil {
+		// logger.Fatal(gui_err.Error())
+	}
+
+	gui_ready <- true
+	if gui_err = gui.MainLoop(); gui_err != nil {
+		if gui_err == cui.ErrQuit {
+			gui.Close()
+			os.Exit(0)
+		} else {
+			// logger.Fatal(gui_err.Error())
+		}
+	}
+}
+
+func GuiSTDLayout(gui *cui.Gui) error {
+	if gui_view_lefttop, gui_err = gui.SetView("LeftTop", 0, 0, gui_max_weight/3, gui_max_height/2); gui_err != nil {
+		if gui_err != cui.ErrUnknownView {
+			return gui_err
+		}
+		gui_view_lefttop.Autoscroll = true
+		fmt.Fprintln(gui_view_lefttop, GuiCenterMessage(gui_view_lefttop, "SPOTITUBE"))
+		fmt.Fprintln(gui_view_lefttop, GuiCenterMessage(gui_view_lefttop, fmt.Sprintf("Version: %d", spttb_system.VERSION)))
+		fmt.Fprintln(gui_view_lefttop, GuiCenterMessage(gui_view_lefttop, fmt.Sprintf("Folder: %s", *arg_folder)))
+		if *arg_log {
+			fmt.Fprintln(gui_view_lefttop, GuiCenterMessage(gui_view_lefttop, fmt.Sprintf("Log filename: %s", spttb_system.DEFAULT_LOG_PATH)))
+		}
+	}
+	if gui_view_leftbottom, gui_err = gui.SetView("LeftBottom", 0, gui_max_height/2+1, gui_max_weight/3, gui_max_height-1); gui_err != nil {
+		if gui_err != cui.ErrUnknownView {
+			return gui_err
+		}
+		gui_view_leftbottom.Autoscroll = true
+		fmt.Fprintln(gui_view_leftbottom, "Date: %s", time.Now().Format("2006-01-02 15:04:05"))
+		fmt.Fprintln(gui_view_leftbottom, "URL: %s", spttb_system.VERSION_REPOSITORY)
+		fmt.Fprintln(gui_view_leftbottom, "License: GPLv2")
+		fmt.Fprintln(gui_view_leftbottom, "Offered by streambinder")
+	}
+	if gui_view_right, gui_err = gui.SetView("Right", gui_max_weight/3+1, 0, gui_max_weight-1, gui_max_height-1); gui_err != nil {
+		if gui_err != cui.ErrUnknownView {
+			return gui_err
+		}
+		gui_view_right.Autoscroll = true
+	}
+
+	return nil
+}
+
+func GuiMessage(view *cui.View, message string, clear ...bool) {
+	gui.Update(func(gui *cui.Gui) error {
+		if len(clear) > 0 && clear[0] {
+			view.Clear()
+		}
+		fmt.Fprintln(view, message)
+		return nil
+	})
+}
+
+func GuiCenterMessage(view *cui.View, message string) string {
+	line_length, _ := view.Size()
+	if len(message) >= line_length {
+		return message[:line_length]
+	} else {
+		line_spacing := (line_length - len(message)) / 2
+		return strings.Repeat(" ", line_spacing) +
+			message + strings.Repeat(" ", line_spacing)
+	}
+}
+
+func GuiClose(gui *cui.Gui, v *cui.View) error {
+	return cui.ErrQuit
 }

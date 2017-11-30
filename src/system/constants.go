@@ -1,10 +1,8 @@
-package spotitube
+package system
 
 import (
 	"fmt"
 	"time"
-
-	"github.com/fatih/color"
 )
 
 var (
@@ -12,15 +10,10 @@ var (
 )
 
 const (
-	VERSION        = 9
-	VERSION_ORIGIN = "https://api.github.com/repos/streambinder/spotitube/releases/latest"
-	VERSION_URL    = "https://github.com/streambinder/spotitube/releases/latest"
-
-	SHELL_NAME_DEFAULT    = "spotitube"
-	SHELL_NAME_MIN_LENGTH = 12
-	SHELL_COLOR_DEFAULT   = color.FgBlue
-	SHELL_COLOR_YOUTUBE   = color.FgRed
-	SHELL_COLOR_SPOTIFY   = color.FgGreen
+	VERSION            = 9
+	VERSION_REPOSITORY = "https://github.com/streambinder/spotitube"
+	VERSION_ORIGIN     = "https://api.github.com/repos/streambinder/spotitube/releases/latest"
+	VERSION_URL        = VERSION_REPOSITORY + "/releases/latest"
 
 	DEFAULT_EXTENSION    = ".mp3"
 	DEFAULT_TCP_CHECK    = "github.com:443"

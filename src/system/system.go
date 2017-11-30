@@ -1,4 +1,4 @@
-package spotitube
+package system
 
 import (
 	"io"

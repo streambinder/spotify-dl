@@ -1,4 +1,4 @@
-package spotitube
+package track
 
 import (
 	"encoding/json"
