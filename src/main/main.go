@@ -20,13 +20,13 @@ import (
 	"syscall"
 	"time"
 
+	spttb_gui "gui"
 	spttb_spotify "spotify"
 	spttb_system "system"
 	spttb_track "track"
 	spttb_youtube "youtube"
 
 	id3 "github.com/bogem/id3v2"
-	cui "github.com/jroimartin/gocui"
 	api "github.com/zmb3/spotify"
 )
 
@@ -56,14 +56,7 @@ var (
 	wait_group       sync.WaitGroup
 	wait_group_limit syscall.Rlimit
 
-	gui                 *cui.Gui
-	gui_err             error
-	gui_ready           chan bool
-	gui_view_lefttop    *cui.View
-	gui_view_leftbottom *cui.View
-	gui_view_right      *cui.View
-	gui_max_weight      int
-	gui_max_height      int
+	gui *spttb_gui.Gui
 )
 
 func main() {
@@ -85,39 +78,51 @@ func main() {
 	arg_version = flag.Bool("version", false, "Print version")
 	flag.Parse()
 
-	if !(spttb_system.IsDir(*arg_folder)) {
-		// logger.Fatal("Chosen music folder does not exist: " + *arg_folder)
-	} else {
-		*arg_folder, _ = filepath.Abs(*arg_folder)
-		os.Chdir(*arg_folder)
-		// logger.Log("Synchronization folder: " + *arg_folder)
-	}
-
-	gui_ready = make(chan bool)
-	go GuiBuild()
-	<-gui_ready
-	defer gui.Close()
-	time.Sleep(3)
-
 	if *arg_version {
 		fmt.Println(fmt.Sprintf("SpotiTube, version %d.", spttb_system.VERSION))
 		os.Exit(0)
 	}
 
+	if !(spttb_system.IsDir(*arg_folder)) {
+		fmt.Println("Chosen music folder does not exist: " + *arg_folder)
+		os.Exit(1)
+	} else {
+		*arg_folder, _ = filepath.Abs(*arg_folder)
+		os.Chdir(*arg_folder)
+	}
+
+	if *arg_clean_junks {
+		junks := CleanJunks()
+		fmt.Println(fmt.Sprintf("Removed %d junk files.", junks))
+		os.Exit(0)
+	}
+
+	gui = spttb_gui.Build()
+	gui.Append("SPOTITUBE", spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("Version: %d", spttb_system.VERSION), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("Folder: %s", *arg_folder), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
+	if *arg_log {
+		gui.Append(fmt.Sprintf("Log filename: %s", spttb_system.DEFAULT_LOG_PATH), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
+
+	}
+	gui.Append(fmt.Sprintf("Date: %s", time.Now().Format("2006-01-02 15:04:05")), spttb_gui.PanelLeftBottom, spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("URL: %s", spttb_system.VERSION_REPOSITORY), spttb_gui.PanelLeftBottom, spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("License: GPLv2"), spttb_gui.PanelLeftBottom, spttb_gui.OrientationCenter)
+
 	for _, command_name := range []string{"youtube-dl", "ffmpeg"} {
 		_, err := exec.LookPath(command_name)
 		if err != nil {
-			// logger.Fatal("Are you sure " + command_name + " is actually installed?")
+			gui.Prompt("Are you sure "+command_name+" is actually installed?", spttb_gui.PromptDismissableWithExit)
 		}
 	}
 
 	_, err := net.Dial("tcp", spttb_system.DEFAULT_TCP_CHECK)
 	if err != nil {
-		// logger.Fatal("Are you sure you're connected to the internet?")
+		gui.Prompt("Are you sure you're connected to the internet?", spttb_gui.PromptDismissableWithExit)
 	}
 
 	if *arg_log {
-		// logger.SetFile(spttb_system.DEFAULT_LOG_PATH)
+		// TODO: logger.SetFile(spttb_system.DEFAULT_LOG_PATH)
 	}
 
 	// TODO: pass debug to logger
@@ -134,36 +139,44 @@ func main() {
 		}
 		version_request, version_error := http.NewRequest(http.MethodGet, spttb_system.VERSION_ORIGIN, nil)
 		if version_error != nil {
-			// logger.Warn("Unable to compile version request: " + version_error.Error())
+			// TODO: warning
+			gui.Append("Unable to compile version request: "+version_error.Error(), spttb_gui.PanelRight)
 		} else {
 			version_response, version_error := version_client.Do(version_request)
 			if version_error != nil {
-				// logger.Warn("Unable to read response from version request: " + version_error.Error())
+				// TODO: warning
+				gui.Append("Unable to read response from version request: "+version_error.Error(), spttb_gui.PanelRight)
 			} else {
 				version_response_body, version_error := ioutil.ReadAll(version_response.Body)
 				if version_error != nil {
-					// logger.Warn("Unable to get response body: " + version_error.Error())
+					// TODO: warning
+					gui.Append("Unable to get response body: "+version_error.Error(), spttb_gui.PanelRight)
 				} else {
 					version_data := OnlineVersion{}
 					version_error = json.Unmarshal(version_response_body, &version_data)
 					if version_error != nil {
-						// logger.Warn("Unable to parse json from response body: " + version_error.Error())
+						// TODO: warning
+						gui.Append("Unable to parse json from response body: "+version_error.Error(), spttb_gui.PanelRight)
 					} else {
 						version_value := 0
 						version_regex, version_error := regexp.Compile("[^0-9]+")
 						if version_error != nil {
-							// logger.Warn("Unable to compile regex needed to parse version: " + version_error.Error())
+							// TODO: warning
+							gui.Append("Unable to compile regex needed to parse version: "+version_error.Error(), spttb_gui.PanelRight)
 						} else {
 							version_value, version_error = strconv.Atoi(version_regex.ReplaceAllString(version_data.Name, ""))
 							if version_error != nil {
-								// logger.Warn("Unable to fetch latest version value: " + version_error.Error())
+								// TODO: warning
+								gui.Append("Unable to fetch latest version value: "+version_error.Error(), spttb_gui.PanelRight)
 							} else if version_value != spttb_system.VERSION {
-								// logger.Warn("You're not aligned to the latest available version.\n" +
-								// "Although you're not forced to update, new updates mean more solid and better performing software.\n" +
-								// "You can find the updated version at: " + spttb_system.VERSION_URL)
-								// logger.WaitForInput("Press enter to continue or CTRL+C to exit.")
+								// TODO: warning
+								gui.Append("You're not aligned to the latest available version.\n"+
+									"Although you're not forced to update, new updates mean more solid and better performing software.\n"+
+									"You can find the updated version at: "+spttb_system.VERSION_URL, spttb_gui.PanelRight)
+								gui.Prompt("Press enter to continue or CTRL+C to exit.", spttb_gui.PromptDismissable)
 							}
-							// logger.Debug(fmt.Sprintf("Actual version %d, online version %d.", spttb_system.VERSION, version_value))
+							// TODO: debug
+							gui.Append(fmt.Sprintf("Actual version %d, online version %d.", spttb_system.VERSION, version_value), spttb_gui.PanelRight)
 						}
 					}
 				}
@@ -171,14 +184,11 @@ func main() {
 		}
 	}
 
-	if *arg_clean_junks {
-		CleanJunks()
-		return
-	}
+	Exit(1 * time.Second)
 
-	// if !spotify_client.Auth() {
-	// logger.Fatal("Unable to authenticate to spotify.")
-	// }
+	if !spotify_client.Auth() {
+		gui.Prompt("Unable to authenticate to spotify.", spttb_gui.PromptDismissableWithExit)
+	}
 
 	var (
 		tracks_online            []api.FullTrack
@@ -191,9 +201,9 @@ func main() {
 		var playlist_err error
 		playlist_info, playlist_err = spotify_client.Playlist(*arg_playlist)
 		if playlist_err != nil {
-			// logger.Fatal("Something went wrong while fetching playlist info.")
+			gui.Prompt("Something went wrong while fetching playlist info.", spttb_gui.PromptDismissableWithExit)
 		} else {
-			// logger.Log("Getting songs from \"" + playlist_info.Name + "\" playlist, by \"" + playlist_info.Owner.DisplayName + "\"")
+			gui.Append(fmt.Sprintf("Getting songs from \"%s\" playlist, by \"%s\"...", playlist_info.Name, playlist_info.Owner.DisplayName), spttb_gui.PanelRight)
 			tracks_online = spotify_client.PlaylistTracks(*arg_playlist)
 		}
 	}
@@ -202,27 +212,28 @@ func main() {
 	}
 	tracks_online_albums = spotify_client.Albums(tracks_online_albums_ids)
 
-	// logger.Log("Checking which songs need to be downloaded.")
+	gui.Append("Checking which songs need to be downloaded.", spttb_gui.PanelRight)
 	for track_index := len(tracks_online) - 1; track_index >= 0; track_index-- {
 		track := spttb_track.ParseSpotifyTrack(tracks_online[track_index], tracks_online_albums[track_index])
 		if !tracks.Has(track) {
 			tracks = append(tracks, track)
 		} else {
-			// logger.Warn("Ignored song duplicate \"" + track.Filename + "\".")
+			// TODO: warning
+			gui.Append(fmt.Sprintf("Ignored song duplicate \"%s\".", track.Filename), spttb_gui.PanelRight)
 		}
 	}
 
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt)
+	signal_channel := make(chan os.Signal, 1)
+	signal.Notify(signal_channel, os.Interrupt)
 	go func() {
-		<-ch
-		// logger.Log("SIGINT captured: cleaning up temporary files.")
+		<-signal_channel
+		gui.Append("SIGINT captured: cleaning up temporary files.", spttb_gui.PanelRight)
 		for _, track := range tracks {
 			for _, track_filename := range track.TempFiles() {
 				os.Remove(track_filename)
 			}
 		}
-		// logger.Fatal("Explicit closure request by the user. Exiting.")
+		gui.Prompt("Explicit closure request by the user. Enter to exit.", spttb_gui.PromptDismissableWithExit)
 	}()
 
 	if len(tracks) > 0 {
@@ -511,104 +522,29 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 	}
 }
 
-func CleanJunks() {
+func CleanJunks() int {
 	// logger.Log("Cleaning up junks")
 	var removed_junks int
 	for _, junk_type := range spttb_track.JunkWildcards {
 		junk_paths, err := filepath.Glob(junk_type)
 		if err != nil {
-			// logger.Warn("Something wrong while searching for \"" + junk_type + "\" junk files: " + err.Error())
 			continue
 		}
 		for _, junk_path := range junk_paths {
+			// TODO: debug
 			// logger.Debug("Removing " + junk_path + "...")
 			os.Remove(junk_path)
 			removed_junks++
 		}
 	}
-	// logger.Log("Removed " + strconv.Itoa(removed_junks) + " files.")
+	return removed_junks
 }
 
-func GuiBuild() {
-	gui, gui_err = cui.NewGui(cui.OutputNormal)
-	if gui_err != nil {
-		// logger.Fatal(gui_err.Error())
+func Exit(delay ...time.Duration) {
+	if len(delay) > 0 {
+		time.Sleep(delay[0])
 	}
-	defer gui.Close()
-
-	gui_max_weight, gui_max_height = gui.Size()
-
-	gui.SetManagerFunc(GuiSTDLayout)
-
-	if gui_err = gui.SetKeybinding("", cui.KeyCtrlC, cui.ModNone, GuiClose); gui_err != nil {
-		// logger.Fatal(gui_err.Error())
-	}
-
-	gui_ready <- true
-	if gui_err = gui.MainLoop(); gui_err != nil {
-		if gui_err == cui.ErrQuit {
-			gui.Close()
-			os.Exit(0)
-		} else {
-			// logger.Fatal(gui_err.Error())
-		}
-	}
-}
-
-func GuiSTDLayout(gui *cui.Gui) error {
-	if gui_view_lefttop, gui_err = gui.SetView("LeftTop", 0, 0, gui_max_weight/3, gui_max_height/2); gui_err != nil {
-		if gui_err != cui.ErrUnknownView {
-			return gui_err
-		}
-		gui_view_lefttop.Autoscroll = true
-		fmt.Fprintln(gui_view_lefttop, GuiCenterMessage(gui_view_lefttop, "SPOTITUBE"))
-		fmt.Fprintln(gui_view_lefttop, GuiCenterMessage(gui_view_lefttop, fmt.Sprintf("Version: %d", spttb_system.VERSION)))
-		fmt.Fprintln(gui_view_lefttop, GuiCenterMessage(gui_view_lefttop, fmt.Sprintf("Folder: %s", *arg_folder)))
-		if *arg_log {
-			fmt.Fprintln(gui_view_lefttop, GuiCenterMessage(gui_view_lefttop, fmt.Sprintf("Log filename: %s", spttb_system.DEFAULT_LOG_PATH)))
-		}
-	}
-	if gui_view_leftbottom, gui_err = gui.SetView("LeftBottom", 0, gui_max_height/2+1, gui_max_weight/3, gui_max_height-1); gui_err != nil {
-		if gui_err != cui.ErrUnknownView {
-			return gui_err
-		}
-		gui_view_leftbottom.Autoscroll = true
-		fmt.Fprintln(gui_view_leftbottom, "Date: %s", time.Now().Format("2006-01-02 15:04:05"))
-		fmt.Fprintln(gui_view_leftbottom, "URL: %s", spttb_system.VERSION_REPOSITORY)
-		fmt.Fprintln(gui_view_leftbottom, "License: GPLv2")
-		fmt.Fprintln(gui_view_leftbottom, "Offered by streambinder")
-	}
-	if gui_view_right, gui_err = gui.SetView("Right", gui_max_weight/3+1, 0, gui_max_weight-1, gui_max_height-1); gui_err != nil {
-		if gui_err != cui.ErrUnknownView {
-			return gui_err
-		}
-		gui_view_right.Autoscroll = true
-	}
-
-	return nil
-}
-
-func GuiMessage(view *cui.View, message string, clear ...bool) {
-	gui.Update(func(gui *cui.Gui) error {
-		if len(clear) > 0 && clear[0] {
-			view.Clear()
-		}
-		fmt.Fprintln(view, message)
-		return nil
-	})
-}
-
-func GuiCenterMessage(view *cui.View, message string) string {
-	line_length, _ := view.Size()
-	if len(message) >= line_length {
-		return message[:line_length]
-	} else {
-		line_spacing := (line_length - len(message)) / 2
-		return strings.Repeat(" ", line_spacing) +
-			message + strings.Repeat(" ", line_spacing)
-	}
-}
-
-func GuiClose(gui *cui.Gui, v *cui.View) error {
-	return cui.ErrQuit
+	CleanJunks()
+	gui.Close()
+	os.Exit(0)
 }

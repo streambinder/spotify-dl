@@ -1,3 +1,5 @@
+CUR_DIR = $(shell pwd)
+
 create_out:
 	@ ( \
 		mkdir -p out \

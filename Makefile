@@ -4,6 +4,7 @@ PROJECT_ROOT := src/
 NAME := spotitube
 GOARCH := amd64
 VERSION := $(shell awk -F'= ' '/VERSION / {print $$2}' src/system/constants.go)
+CUR_DIR = $(shell pwd)
 
 include Makefile.gobuild
 include Makefile.gobuild
@@ -52,5 +53,15 @@ x86: all
 x64: all
 
 release: packages unpackage
+
+clean:
+	@ ( \
+		echo "Cleaning up..."; \
+		test ! -d $(CUR_DIR)/pkg || rm -rf $(CUR_DIR)/pkg; \
+		test ! -d $(CUR_DIR)/bin || rm -rf $(CUR_DIR)/bin; \
+        test ! -d $(CUR_DIR)/out || rm -rf $(CUR_DIR)/out; \
+		echo "Done."; \
+	);
+
 
 all: dependencies $(BINS)
