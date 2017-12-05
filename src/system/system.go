@@ -4,7 +4,6 @@ import (
 	"io"
 	"math/rand"
 	"os"
-	"syscall"
 	"time"
 )
 
@@ -81,11 +80,4 @@ func FileCopy(path_from string, path_to string) error {
 	}
 
 	return path_to_open.Close()
-}
-
-func SyscallLimit(limit *syscall.Rlimit) error {
-	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, limit); err != nil {
-		return err
-	}
-	return nil
 }
