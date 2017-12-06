@@ -67,7 +67,8 @@ var (
 
 	gui_ready          chan *gocui.Gui
 	gui_prompt_dismiss chan bool
-	gui_mutex          sync.Mutex
+	gui_append_mutex   sync.Mutex
+	gui_prompt_mutex   sync.Mutex
 
 	singleton *Gui
 )
@@ -127,8 +128,8 @@ func Run() {
 }
 
 func (gui *Gui) Append(message string, panel int, options ...int) error {
-	gui_mutex.Lock()
-	defer gui_mutex.Unlock()
+	gui_append_mutex.Lock()
+	defer gui_append_mutex.Unlock()
 	view, err := gui.View(Panels[panel])
 	if err != nil {
 		return err
@@ -186,6 +187,8 @@ func (gui *Gui) DebugAppend(message string, panel int, options ...int) error {
 }
 
 func (gui *Gui) Prompt(message string, options ...int) error {
+	gui_prompt_mutex.Lock()
+	defer gui_prompt_mutex.Unlock()
 	gui_prompt_dismiss = make(chan bool)
 	if (len(options) <= 1 || options[1] == LogWrite) && gui.Logger != nil {
 		gui.Logger.Append(message)
@@ -216,6 +219,34 @@ func (gui *Gui) Prompt(message string, options ...int) error {
 	})
 	<-gui_prompt_dismiss
 	return nil
+}
+
+func (gui *Gui) PromptInput(message string, options ...int) bool {
+	gui_prompt_mutex.Lock()
+	defer gui_prompt_mutex.Unlock()
+	gui_prompt_dismiss = make(chan bool)
+	gui.Update(func(gui *gocui.Gui) error {
+		var (
+			view *gocui.View
+			err  error
+		)
+		gui_weight, gui_height := gui.Size()
+		if view, err = gui.SetView("GuiPrompt",
+			gui_weight/2-(len(message)/2)-2, gui_height/2,
+			gui_weight/2+(len(message)/2), gui_height/2+2); err != nil {
+			if err != gocui.ErrUnknownView {
+				return err
+			}
+			fmt.Fprintln(view, MessageOrientate(fmt.Sprintf("%s\n(ESC to cancel, ENTER to ok)", message), view, OrientationCenter))
+			if len(options) == 0 {
+				options = append(options, PromptDismissable)
+			}
+			gui.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, GuiDismissPromptWithInputOk)
+			gui.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, GuiDismissPromptWithInputNok)
+		}
+		return nil
+	})
+	return <-gui_prompt_dismiss
 }
 
 /*
@@ -305,6 +336,28 @@ func GuiDismissPrompt(gui *gocui.Gui, view *gocui.View) error {
 func GuiDismissPromptAndClose(gui *gocui.Gui, view *gocui.View) error {
 	GuiDismissPrompt(gui, view)
 	return GuiClose(gui, view)
+}
+
+func GuiDismissPromptWithInput(gui *gocui.Gui, view *gocui.View) error {
+	gui.Update(func(gui *gocui.Gui) error {
+		gui.DeleteView("GuiPrompt")
+		return nil
+	})
+	gui.DeleteKeybinding("", gocui.KeyEnter, gocui.ModNone)
+	gui.DeleteKeybinding("", gocui.KeyEsc, gocui.ModNone)
+	return nil
+}
+
+func GuiDismissPromptWithInputOk(gui *gocui.Gui, view *gocui.View) error {
+	GuiDismissPromptWithInput(gui, view)
+	gui_prompt_dismiss <- true
+	return nil
+}
+
+func GuiDismissPromptWithInputNok(gui *gocui.Gui, view *gocui.View) error {
+	GuiDismissPromptWithInput(gui, view)
+	gui_prompt_dismiss <- false
+	return nil
 }
 
 func GuiClose(gui *gocui.Gui, view *gocui.View) error {

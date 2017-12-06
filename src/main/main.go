@@ -51,7 +51,6 @@ var (
 	tracks           spttb_track.Tracks
 	tracks_failed    spttb_track.Tracks
 	playlist_info    *api.FullPlaylist
-	youtube_client   *spttb_youtube.YouTube = spttb_youtube.NewClient()
 	spotify_client   *spttb_spotify.Spotify = spttb_spotify.NewClient()
 	wait_group       sync.WaitGroup
 	wait_group_limit syscall.Rlimit
@@ -226,7 +225,6 @@ func main() {
 	gui.Append(fmt.Sprintf("Duplicates: %d", tracks_duplicates), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
 
 	if len(tracks) > 0 {
-		youtube_client.SetInteractive(*arg_interactive)
 		if *arg_replace_local {
 			gui.Append(fmt.Sprintf("%d missing songs.", tracks.CountOnline()), spttb_gui.PanelRight)
 		} else if *arg_flush_metadata {
@@ -237,32 +235,73 @@ func main() {
 		for track_index, track := range tracks {
 			gui.Append(fmt.Sprintf("%d/%d: \"%s\"", track_index+1, len(tracks), track.Filename), spttb_gui.PanelRight)
 			if !track.Local || *arg_replace_local || *arg_simulate {
-				youtube_track, err := youtube_client.FindTrack(track)
+				youtube_tracks, err := spttb_youtube.QueryTracks(&track)
 				if err != nil {
-					gui.WarnAppend(fmt.Sprintf("Something went wrong while searching for \"%s\" track: %s.", track.Filename, err.Error()), spttb_gui.PanelRight)
+					gui.WarnAppend(fmt.Sprintf("Something went wrong while searching for \"%s\" track:\n%s.", track.Filename, err.Error()), spttb_gui.PanelRight)
 					tracks_failed = append(tracks_failed, track)
 					continue
-				} else if *arg_simulate {
-					gui.Append(fmt.Sprintf("I would like to download \"%s\" for \"%s\" track, but I'm just simulating.", youtube_track.URL, track.Filename), spttb_gui.PanelRight)
-					continue
-				} else if *arg_replace_local {
-					if track.URL == youtube_track.URL {
-						gui.Append(fmt.Sprintf("Track \"%s\" is still the best result I can find.", track.Filename), spttb_gui.PanelRight)
-						continue
-					} else {
-						track.URL = ""
-						track.Local = false
-						os.Remove(track.FilenameFinal())
-					}
 				}
 
-				err = youtube_track.Download()
-				if err != nil {
-					gui.WarnAppend(fmt.Sprintf("Something went wrong downloading \"%s\": %s.", track.Filename, err.Error()), spttb_gui.PanelRight)
-					tracks_failed = append(tracks_failed, track)
-					continue
-				} else {
-					track.URL = youtube_track.URL
+				var youtube_track *spttb_youtube.YouTubeTrack
+				for {
+					if !youtube_tracks.HasNext() {
+						gui.ErrAppend(fmt.Sprintf("Video for \"%s\" not found.", track.Filename), spttb_gui.PanelRight)
+						break
+					}
+					if youtube_track, err = youtube_tracks.Next(); err != nil {
+						gui.WarnAppend(fmt.Sprintf("Faulty result: %s.", err.Error()), spttb_gui.PanelRight)
+						continue
+					}
+
+					gui.DebugAppend(fmt.Sprintf("Result picked: ID: %s,\ntitle: %s,\nuser: %s,\nduration: %d.",
+						youtube_track.ID, youtube_track.Title, youtube_track.User, youtube_track.Duration), spttb_gui.PanelRight)
+
+					var (
+						ans_input     bool
+						ans_automated bool
+					)
+					if *arg_interactive {
+						ans_input = false
+						ans_automated = youtube_track.Match(track)
+						var ans_automated_msg string
+						if ans_automated {
+							ans_automated_msg = "I would do it"
+						} else {
+							ans_automated_msg = "I wouldn't do it"
+						}
+						ans_input = gui.PromptInput(fmt.Sprintf("Do you want to download %s's video \"%s\" at \"%s\" (%s)?",
+							youtube_track.User, youtube_track.Title, youtube_track.URL, ans_automated_msg))
+						if !ans_input {
+							continue
+						}
+					}
+
+					if ans_input || ans_automated {
+						track.URL = youtube_track.URL
+					}
+
+					if *arg_simulate {
+						gui.Append(fmt.Sprintf("I would like to download \"%s\" for \"%s\" track, but I'm just simulating.", youtube_track.URL, track.Filename), spttb_gui.PanelRight)
+						continue
+					} else if *arg_replace_local {
+						if track.URL == youtube_track.URL {
+							gui.Append(fmt.Sprintf("Track \"%s\" is still the best result I can find.", track.Filename), spttb_gui.PanelRight)
+							continue
+						} else {
+							track.URL = ""
+							track.Local = false
+							os.Remove(track.FilenameFinal())
+						}
+					}
+
+					err = youtube_track.Download()
+					if err != nil {
+						gui.WarnAppend(fmt.Sprintf("Something went wrong downloading \"%s\": %s.", track.Filename, err.Error()), spttb_gui.PanelRight)
+						tracks_failed = append(tracks_failed, track)
+						continue
+					} else {
+						track.URL = youtube_track.URL
+					}
 				}
 			}
 

@@ -13,14 +13,19 @@ import (
 	spttb_track "track"
 
 	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
 )
 
-type YouTube struct {
-	Interactive bool
+type YouTubeTracks struct {
+	Track             *spttb_track.Track
+	Selection         *goquery.Selection
+	SelectionDesc     *goquery.Selection
+	SelectionDuration *goquery.Selection
+	SelectionPointer  html.Node
 }
 
 type YouTubeTrack struct {
-	Track    spttb_track.Track
+	Track    *spttb_track.Track
 	ID       string
 	URL      string
 	Title    string
@@ -28,139 +33,93 @@ type YouTubeTrack struct {
 	Duration int
 }
 
-func NewClient() *YouTube {
-	return &YouTube{
-		Interactive: false,
-	}
-}
-
-func (youtube *YouTube) SetInteractive(set_interactive bool) {
-	youtube.Interactive = set_interactive
-}
-
-func (youtube *YouTube) FindTrack(track spttb_track.Track) (YouTubeTrack, error) {
-	var doc *goquery.Document
-	// logger.Log("Searching youtube results to \"" + fmt.Sprintf(YOUTUBE_QUERY_PATTERN, strings.Replace(track.SearchPattern, " ", "+", -1)) + "\".")
-	request, _ := http.NewRequest("GET", fmt.Sprintf(spttb_system.YOUTUBE_QUERY_PATTERN, strings.Replace(track.SearchPattern, " ", "+", -1)), nil)
+func QueryTracks(track *spttb_track.Track) (*YouTubeTracks, error) {
+	var (
+		doc          *goquery.Document
+		query_string = fmt.Sprintf(spttb_system.YOUTUBE_QUERY_PATTERN,
+			strings.Replace(track.SearchPattern, " ", "+", -1))
+	)
+	request, _ := http.NewRequest("GET", query_string, nil)
 	request.Header.Add("Accept-Language", "en")
 	response, err := http.DefaultClient.Do(request)
 	if err == nil {
 		doc, _ = goquery.NewDocumentFromResponse(response)
 	} else {
-		doc, err = goquery.NewDocument(fmt.Sprintf(spttb_system.YOUTUBE_QUERY_PATTERN, strings.Replace(track.SearchPattern, " ", "+", -1)))
+		doc, err = goquery.NewDocument(query_string)
 	}
 	if err != nil {
-		return YouTubeTrack{}, errors.New("Cannot retrieve doc from \"" +
-			fmt.Sprintf(spttb_system.YOUTUBE_QUERY_PATTERN,
-				strings.Replace(track.SearchPattern, " ", "+", -1)) + "\": " + err.Error())
+		return &YouTubeTracks{}, errors.New(fmt.Sprintf("Cannot retrieve doc from \"%s\": %s", query_string, err.Error()))
 	}
 	// html, _ := doc.Html()
 	// logger.Debug(html)
-	selection := doc.Find(spttb_system.YOUTUBE_VIDEO_SELECTOR)
-	selection_desc := doc.Find(spttb_system.YOUTUBE_DESC_SELECTOR)
-	selection_duration := doc.Find(spttb_system.YOUTUBE_DURATION_SELECTOR)
-	for lap := range [2]int{} {
-		if youtube.Interactive && lap > 0 {
-			continue
-		}
-		for selection_item := range selection.Nodes {
-			item := selection.Eq(selection_item)
-			item_href, item_href_ok := item.Attr("href")
-			item_title, item_title_ok := item.Attr("title")
-			item_user, item_user_ok := "UNKNOWN", false
-			item_length, item_length_ok := 0, false
-			if selection_item < len(selection_desc.Nodes) {
-				item_desc := selection_desc.Eq(selection_item)
-				item_user = strings.TrimSpace(item_desc.Find("a").Text())
-				item_user_ok = true
-			}
-			if selection_item < len(selection_duration.Nodes) {
-				var item_length_m, item_length_s int
-				item_duration := selection_duration.Eq(selection_item)
-				item_length_str := strings.TrimSpace(item_duration.Text())
-				if strings.Contains(item_length_str, ": ") {
-					item_length_str = strings.Split(item_length_str, ": ")[1]
-					item_length_m, err = strconv.Atoi(strings.Split(item_length_str, ":")[0])
-					if err == nil {
-						item_length_s, err = strconv.Atoi(strings.Split(item_length_str, ":")[1][:2])
-						if err == nil {
-							item_length = item_length_m*60 + item_length_s
-							item_length_ok = true
-						}
-					}
-				}
-			}
-			if !(item_href_ok && item_title_ok && item_user_ok && item_length_ok) {
-				// logger.Debug("Non-standard YouTube video entry structure: " +
-				// 	"url is " + strconv.FormatBool(item_href_ok) + ", " +
-				// 	"title is " + strconv.FormatBool(item_title_ok) + ", " +
-				// 	"user is " + strconv.FormatBool(item_user_ok) + ", " +
-				// 	"duration is " + strconv.FormatBool(item_length_ok) + ". Continuing scraping...")
-				continue
-			} else if !strings.Contains(strings.ToLower(item_href), "youtu.be") &&
-				!strings.Contains(strings.ToLower(item_href), "watch?v=") {
-				// logger.Debug("Advertising URL found. Continuing scraping...")
-				continue
-			}
-
-			youtube_track := YouTubeTrack{
-				Track:    track,
-				ID:       IdFromUrl(spttb_system.YOUTUBE_VIDEO_PREFIX + item_href),
-				URL:      spttb_system.YOUTUBE_VIDEO_PREFIX + item_href,
-				Title:    item_title,
-				User:     item_user,
-				Duration: item_length,
-			}
-
-			// logger.Debug("ID: " + youtube_track.ID +
-			// 	" | URL: " + youtube_track.URL +
-			// 	" | Title: " + youtube_track.Title +
-			// 	" | User: " + youtube_track.User +
-			// 	" | Duration: " + fmt.Sprintf("%d", youtube_track.Duration))
-
-			var (
-				ans     bool = false
-				ans_err error
-			)
-			ans_automated := (lap == 0 && youtube_track.Match(track, true)) ||
-				(lap == 1 && youtube_track.Match(track, false))
-			if youtube.Interactive {
-				// var ans_automated_msg string
-				// if ans_automated {
-				// 	ans_automated_msg = "I would do it"
-				// } else {
-				// 	ans_automated_msg = "I wouldn't do it"
-				// }
-				for {
-					// TODO: FIXME
-					ans = true
-					// ans, ans_err = WaitForConfirmation("Do you want to download "+youtube_track.User+
-					// 	"'s video \""+youtube_track.Title+"\" at \""+youtube_track.URL+
-					// 	"\" ("+ans_automated_msg+")?", false)
-					if ans_err != nil {
-						// logger.Warn(ans_err.Error())
-						continue
-					}
-					break
-				}
-				if !ans {
-					continue
-				}
-			}
-
-			if ans || ans_automated {
-				track.URL = youtube_track.URL
-				return youtube_track, nil
-			}
-		}
-	}
-
-	// logger.Warn("YouTube video URL not found. Dropping song download.")
-	return YouTubeTrack{}, errors.New("YouTube video URL not found")
+	return &YouTubeTracks{
+		Track:             track,
+		Selection:         doc.Find(spttb_system.YOUTUBE_VIDEO_SELECTOR),
+		SelectionDesc:     doc.Find(spttb_system.YOUTUBE_DESC_SELECTOR),
+		SelectionDuration: doc.Find(spttb_system.YOUTUBE_DURATION_SELECTOR),
+	}, nil
 }
 
-func (youtube_track YouTubeTrack) Match(track spttb_track.Track, strict bool) bool {
-	item_title := strings.ToLower(youtube_track.Title)
+func (youtube_tracks *YouTubeTracks) HasNext() bool {
+	return len(youtube_tracks.Selection.Nodes) > 0
+}
+
+func (youtube_tracks *YouTubeTracks) Next() (*YouTubeTrack, error) {
+	var err error
+	if youtube_tracks.HasNext() {
+		// selection_item := youtube_tracks.Selection.Nodes[0]
+		youtube_tracks.Selection.Nodes = youtube_tracks.Selection.Nodes[1:]
+		item := youtube_tracks.Selection.Eq(0)
+		item_href, item_href_ok := item.Attr("href")
+		item_title, item_title_ok := item.Attr("title")
+		item_user, item_user_ok := "UNKNOWN", false
+		item_length, item_length_ok := 0, false
+		if 0 < len(youtube_tracks.SelectionDesc.Nodes) {
+			item_desc := youtube_tracks.SelectionDesc.Eq(0)
+			item_user = strings.TrimSpace(item_desc.Find("a").Text())
+			item_user_ok = true
+		}
+		if 0 < len(youtube_tracks.SelectionDuration.Nodes) {
+			var item_length_m, item_length_s int
+			item_duration := youtube_tracks.SelectionDuration.Eq(0)
+			item_length_str := strings.TrimSpace(item_duration.Text())
+			if strings.Contains(item_length_str, ": ") {
+				item_length_str = strings.Split(item_length_str, ": ")[1]
+				item_length_m, err = strconv.Atoi(strings.Split(item_length_str, ":")[0])
+				if err == nil {
+					item_length_s, err = strconv.Atoi(strings.Split(item_length_str, ":")[1][:2])
+					if err == nil {
+						item_length = item_length_m*60 + item_length_s
+						item_length_ok = true
+					}
+				}
+			}
+		}
+		if !(item_href_ok && item_title_ok && item_user_ok && item_length_ok) {
+			return &YouTubeTrack{}, errors.New(fmt.Sprintf("Non-standard YouTube video entry structure: "+
+				"url is %s, title is %s, user is %s, duration is %s.",
+				strconv.FormatBool(item_href_ok), strconv.FormatBool(item_title_ok),
+				strconv.FormatBool(item_user_ok), strconv.FormatBool(item_length_ok)))
+		} else if !strings.Contains(strings.ToLower(item_href), "youtu.be") &&
+			!strings.Contains(strings.ToLower(item_href), "watch?v=") {
+			return &YouTubeTrack{}, errors.New(fmt.Sprintf("Advertising URL found: %s", item_href))
+		}
+
+		return &YouTubeTrack{
+			Track:    youtube_tracks.Track,
+			ID:       IdFromUrl(spttb_system.YOUTUBE_VIDEO_PREFIX + item_href),
+			URL:      spttb_system.YOUTUBE_VIDEO_PREFIX + item_href,
+			Title:    item_title,
+			User:     item_user,
+			Duration: item_length,
+		}, nil
+	}
+
+	return &YouTubeTrack{}, errors.New("YouTube video URL not found")
+}
+
+func (youtube_track YouTubeTrack) Match(track spttb_track.Track) bool {
+	// item_title := strings.ToLower(youtube_track.Title)
 
 	if int(math.Abs(float64(track.Duration-youtube_track.Duration))) > spttb_system.YOUTUBE_DURATION_TOLERANCE {
 		// logger.Debug(fmt.Sprintf("The duration difference is excessive: | %d - %d | = %d (max tolerated: %d)",
@@ -172,14 +131,6 @@ func (youtube_track YouTubeTrack) Match(track spttb_track.Track, strict bool) bo
 		// logger.Debug("Track is actually pointing to playlist or user.")
 		return false
 	} else if track.Seems(youtube_track.Title) {
-		// logger.Debug("Song seems the one we're looking for. Checking youtube specific stuff.")
-		if strict &&
-			(strings.Contains(item_title, "official video") ||
-				(strings.Contains(youtube_track.User, "VEVO") &&
-					!(strings.Contains(item_title, "audio") || strings.Contains(item_title, "lyric")))) {
-			// logger.Debug("First page readup, temporarily ignoring \"" + youtube_track.Title + "\" by \"" + youtube_track.User + "\".")
-			return false
-		}
 		// logger.Log("Video \"" + youtube_track.Title + "\" matches with track \"" + track.Artist + " - " + track.Title + "\".")
 		return true
 	}
