@@ -4,14 +4,19 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
+
+	spttb_logger "logger"
 
 	"github.com/fatih/color"
 	"github.com/jroimartin/gocui"
 )
 
 const (
-	PromptNotDismissable = iota
-	PromptDismissable
+	OptionNil = -1
+	_
+	// PromptNotDismissable = iota
+	PromptDismissable = iota
 	PromptDismissableWithExit
 	_
 
@@ -35,6 +40,9 @@ const (
 	FontStyleBold = iota
 	FontStyleUnderline
 	FontStyleReverse
+	_
+	LogWrite = iota
+	LogNoWrite
 )
 
 var (
@@ -59,6 +67,7 @@ var (
 
 	gui_ready          chan *gocui.Gui
 	gui_prompt_dismiss chan bool
+	gui_mutex          sync.Mutex
 
 	singleton *Gui
 )
@@ -69,6 +78,7 @@ type Gui struct {
 	Height  int
 	Verbose bool
 	Closing chan bool
+	Logger  *spttb_logger.Logger
 }
 
 func Build(verbose bool) *Gui {
@@ -84,8 +94,14 @@ func Build(verbose bool) *Gui {
 		gui_height,
 		verbose,
 		make(chan bool),
+		nil,
 	}
 	return singleton
+}
+
+func (gui *Gui) LinkLogger(logger *spttb_logger.Logger) error {
+	gui.Logger = logger
+	return nil
 }
 
 func Run() {
@@ -111,21 +127,26 @@ func Run() {
 }
 
 func (gui *Gui) Append(message string, panel int, options ...int) error {
+	gui_mutex.Lock()
+	defer gui_mutex.Unlock()
 	view, err := gui.View(Panels[panel])
 	if err != nil {
 		return err
 	} else {
+		if (len(options) <= 3 || options[3] == LogWrite) && gui.Logger != nil {
+			gui.Logger.Append(message)
+		}
 		gui.Update(func(gui *gocui.Gui) error {
 			if len(options) > 2 && options[2] >= 0 {
 				message = MessageStyle(message, options[2])
-			}
-			if len(options) > 1 && options[1] >= 0 {
-				message = MessageColor(message, options[1])
 			}
 			if len(options) > 0 && options[0] >= 0 {
 				message = MessageOrientate(message, view, options[0])
 			} else {
 				message = MessageOrientate(message, view, OrientationLeft)
+			}
+			if len(options) > 1 && options[1] >= 0 {
+				message = MessageColor(message, options[1])
 			}
 			fmt.Fprintln(view, message)
 			return nil
@@ -155,14 +176,20 @@ func (gui *Gui) WarnAppend(message string, panel int, options ...int) error {
 
 func (gui *Gui) DebugAppend(message string, panel int, options ...int) error {
 	if !gui.Verbose {
+		if gui.Logger != nil {
+			return gui.Logger.Append(message)
+		}
 		return nil
 	} else {
 		return gui.Append(message, panel, ReplaceOptions(options, 1, FontColorMagenta)...)
 	}
 }
 
-func (gui *Gui) Prompt(message string, dismiss int) error {
+func (gui *Gui) Prompt(message string, options ...int) error {
 	gui_prompt_dismiss = make(chan bool)
+	if (len(options) <= 1 || options[1] == LogWrite) && gui.Logger != nil {
+		gui.Logger.Append(message)
+	}
 	gui.Update(func(gui *gocui.Gui) error {
 		var (
 			view *gocui.View
@@ -176,10 +203,13 @@ func (gui *Gui) Prompt(message string, dismiss int) error {
 				return err
 			}
 			fmt.Fprintln(view, message)
-			if dismiss == PromptDismissable {
-				gui.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, GuiDismissPrompt)
-			} else if dismiss == PromptDismissableWithExit {
+			if len(options) == 0 {
+				options = append(options, PromptDismissable)
+			}
+			if options[0] == PromptDismissableWithExit {
 				gui.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, GuiDismissPromptAndClose)
+			} else {
+				gui.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, GuiDismissPrompt)
 			}
 		}
 		return nil
@@ -220,19 +250,17 @@ func GuiSTDLayout(gui *gocui.Gui) error {
 
 func MessageOrientate(message string, view *gocui.View, orientation int) string {
 	var message_lines []string
+	var line_length, _ = view.Size()
 	for _, line := range strings.Split(message, "\n") {
-		line_length, _ := view.Size()
-		if len(line) >= line_length {
-			line = line[:line_length]
-		} else {
+		if len(line) < line_length {
 			line_spacing := (line_length - len(line)) / 2
 			if orientation == OrientationLeft {
-				line = " " + line + strings.Repeat(" ", line_spacing*2-1)
+				line = line
 			} else if orientation == OrientationCenter {
 				line = strings.Repeat(" ", line_spacing) +
 					line + strings.Repeat(" ", line_spacing)
 			} else if orientation == OrientationRight {
-				line = strings.Repeat(" ", line_spacing*2-1) + line + " "
+				line = strings.Repeat(" ", line_spacing*2-1) + line
 			}
 		}
 		message_lines = append(message_lines, line)
@@ -280,7 +308,7 @@ func GuiDismissPromptAndClose(gui *gocui.Gui, view *gocui.View) error {
 }
 
 func GuiClose(gui *gocui.Gui, view *gocui.View) error {
-	gui_instance.Closing <- true
+	singleton.Closing <- true
 	gui.DeleteKeybinding("", gocui.KeyCtrlC, gocui.ModNone)
 	return gocui.ErrQuit
 }

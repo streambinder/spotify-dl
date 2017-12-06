@@ -7,15 +7,7 @@ import (
 	"time"
 )
 
-var (
-	opt_interactive *bool = GetBoolPointer(false)
-	opt_logfile     *bool = GetBoolPointer(false)
-	opt_debug       *bool = GetBoolPointer(false)
-
-	opt_download_path string // TODO: fire this away
-)
-
-func IsDir(path string) bool {
+func Dir(path string) bool {
 	file, err := os.Open(path)
 	if err != nil {
 		return false
@@ -33,10 +25,6 @@ func MakeRange(min, max int) []int {
 		a[i] = min + i
 	}
 	return a
-}
-
-func GetBoolPointer(value bool) *bool {
-	return &value
 }
 
 func RandString(n int) string {
@@ -60,6 +48,15 @@ func RandString(n int) string {
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
+}
+
+func FileTouch(path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	file.Close()
+	return nil
 }
 
 func FileCopy(path_from string, path_to string) error {

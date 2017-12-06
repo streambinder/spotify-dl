@@ -20,6 +20,7 @@ import (
 	"time"
 
 	spttb_gui "gui"
+	spttb_logger "logger"
 	spttb_spotify "spotify"
 	spttb_system "system"
 	spttb_track "track"
@@ -82,7 +83,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	if !(spttb_system.IsDir(*arg_folder)) {
+	if !(spttb_system.Dir(*arg_folder)) {
 		fmt.Println(fmt.Sprintf("Chosen music folder does not exist: %s", *arg_folder))
 		os.Exit(1)
 	} else {
@@ -97,7 +98,6 @@ func main() {
 	}
 
 	gui = spttb_gui.Build(*arg_debug)
-	defer Exit()
 	gui.Append(fmt.Sprintf("SPOTITUBE\nVersion: %d\nFolder: %s", spttb_system.VERSION, *arg_folder), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
 	if *arg_log {
 		gui.Append(fmt.Sprintf("Log filename: %s", spttb_system.DEFAULT_LOG_PATH), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
@@ -120,7 +120,10 @@ func main() {
 	}
 
 	if *arg_log {
-		// TODO: logger.SetFile(spttb_system.DEFAULT_LOG_PATH)
+		err := gui.LinkLogger(spttb_logger.Build(spttb_system.DEFAULT_LOG_PATH))
+		if err != nil {
+			gui.Prompt(fmt.Sprintf("Something went wrong while linking logger to %s", spttb_system.DEFAULT_LOG_PATH), spttb_gui.PromptDismissableWithExit)
+		}
 	}
 
 	if !*arg_disable_update_check {
@@ -171,9 +174,10 @@ func main() {
 
 	go func() {
 		<-gui.Closing
-		gui.Append("Signal captured: cleaning up temporary files...", spttb_gui.PanelRight)
-		CleanJunks()
-		Exit()
+		fmt.Println("Signal captured: cleaning up temporary files...")
+		junks := CleanJunks()
+		fmt.Println(fmt.Sprintf("Cleaned up %d files. Exiting.", junks))
+		Exit(1 * time.Second)
 	}()
 
 	if !spotify_client.Auth() {
@@ -312,7 +316,8 @@ func main() {
 			}
 		}
 
-		CleanJunks()
+		junks := CleanJunks()
+		gui.Append(fmt.Sprintf("Removed %d junk files.", junks), spttb_gui.PanelRight)
 
 		if len(tracks_failed) > 0 {
 			gui.Append(fmt.Sprintf("Synchronization partially completed, %d tracks failed to synchronize:", len(tracks_failed)), spttb_gui.PanelRight)
@@ -496,7 +501,6 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 }
 
 func CleanJunks() int {
-	gui.Append("Cleaning up junks...", spttb_gui.PanelRight)
 	var removed_junks int
 	for _, junk_type := range spttb_track.JunkWildcards {
 		junk_paths, err := filepath.Glob(junk_type)
@@ -504,7 +508,6 @@ func CleanJunks() int {
 			continue
 		}
 		for _, junk_path := range junk_paths {
-			gui.DebugAppend(fmt.Sprintf("Removing %s...", junk_path), spttb_gui.PanelRight)
 			os.Remove(junk_path)
 			removed_junks++
 		}
