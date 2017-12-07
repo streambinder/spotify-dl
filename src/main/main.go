@@ -332,6 +332,13 @@ func main() {
 				continue
 			}
 
+			if !*arg_disable_lyrics {
+				err := (&track).SearchLyrics()
+				if err != nil {
+					gui.WarnAppend(fmt.Sprintf("Something went wrong while searching for song \"%s\" lyrics: %s", track.Filename, err.Error()), spttb_gui.PanelRight)
+				}
+			}
+
 			wait_group.Add(1)
 			go ParallelSongProcess(track, &wait_group)
 			if *arg_debug {
@@ -477,13 +484,6 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 			track_artwork_reader, track_artwork_err = ioutil.ReadFile(track.FilenameArtwork())
 			if track_artwork_err != nil {
 				gui.WarnAppend(fmt.Sprintf("Unable to read artwork file: %s", track_artwork_err.Error()), spttb_gui.PanelRight)
-			}
-		}
-
-		if !*arg_disable_lyrics {
-			err := (&track).SearchLyrics()
-			if err != nil {
-				gui.WarnAppend(fmt.Sprintf("Something went wrong while searching for song \"%s\" lyrics: %s", track.Filename, err.Error()), spttb_gui.PanelRight)
 			}
 		}
 
