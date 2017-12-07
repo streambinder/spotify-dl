@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	spttb_gui "gui"
@@ -48,12 +47,12 @@ var (
 	arg_simulate                *bool
 	arg_version                 *bool
 
-	tracks           spttb_track.Tracks
-	tracks_failed    spttb_track.Tracks
-	playlist_info    *api.FullPlaylist
-	spotify_client   *spttb_spotify.Spotify = spttb_spotify.NewClient()
-	wait_group       sync.WaitGroup
-	wait_group_limit syscall.Rlimit
+	tracks          spttb_track.Tracks
+	tracks_failed   spttb_track.Tracks
+	playlist_info   *api.FullPlaylist
+	spotify_client  *spttb_spotify.Spotify = spttb_spotify.NewClient()
+	wait_group      sync.WaitGroup
+	wait_group_pool chan bool = make(chan bool, spttb_system.CONCURRENCY_LIMIT)
 
 	gui *spttb_gui.Gui
 )
@@ -185,6 +184,7 @@ func main() {
 	if !spotify_client.Auth(spotify_auth_url) {
 		gui.Prompt("Unable to authenticate to spotify.", spttb_gui.PromptDismissableWithExit)
 	}
+	gui.Append("Authentication completed.", spttb_gui.PanelRight)
 
 	var (
 		tracks_online            []api.FullTrack
@@ -193,10 +193,12 @@ func main() {
 		tracks_err               error
 	)
 	if *arg_playlist == "none" {
+		gui.Append("Fetching music library...", spttb_gui.PanelRight)
 		if tracks_online, tracks_err = spotify_client.LibraryTracks(); tracks_err != nil {
 			gui.Prompt(fmt.Sprintf("Something went wrong while fetching playlist: %s.", tracks_err.Error()), spttb_gui.PromptDismissableWithExit)
 		}
 	} else {
+		gui.Append("Fetching playlist...", spttb_gui.PanelRight)
 		var playlist_err error
 		playlist_info, playlist_err = spotify_client.Playlist(*arg_playlist)
 		if playlist_err != nil {
@@ -235,6 +237,10 @@ func main() {
 	gui.Append(fmt.Sprintf("Duplicates: %d", tracks_duplicates), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
 
 	if len(tracks) > 0 {
+		for range [spttb_system.CONCURRENCY_LIMIT]int{} {
+			wait_group_pool <- true
+		}
+
 		if *arg_replace_local {
 			gui.Append(fmt.Sprintf("%d missing songs.", tracks.CountOnline()), spttb_gui.PanelRight)
 		} else if *arg_flush_metadata {
@@ -271,7 +277,7 @@ func main() {
 					ans_err = youtube_track.Match(track)
 					ans_automated = bool(ans_err == nil)
 					if !*arg_interactive && ans_err != nil {
-						gui.ErrAppend(fmt.Sprintf("\"%s\" seems not the one we're looking for: %s", youtube_track.Title, ans_err.Error()), spttb_gui.PanelRight)
+						gui.WarnAppend(fmt.Sprintf("\"%s\" seems not the one we're looking for: %s", youtube_track.Title, ans_err.Error()), spttb_gui.PanelRight)
 					} else if *arg_interactive {
 						var ans_automated_msg string
 						if ans_automated {
@@ -286,8 +292,6 @@ func main() {
 						gui.Append(fmt.Sprintf("\"%s\" is good to go for \"%s\".", youtube_track.Title, track.Filename), spttb_gui.PanelRight)
 						track_picked = true
 						break
-					} else {
-						gui.Append(fmt.Sprintf("Result ignored: \"%s\".", youtube_track.Title), spttb_gui.PanelRight)
 					}
 				}
 
@@ -383,6 +387,7 @@ func main() {
 				gui.Append(fmt.Sprintf(" - \"%s\"", track.Filename), spttb_gui.PanelRight)
 			}
 		}
+		close(wait_group_pool)
 		wait_group.Wait()
 		gui.Prompt("Synchronization completed.", spttb_gui.PromptDismissableWithExit)
 	} else {
@@ -395,6 +400,7 @@ func main() {
 
 func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 	defer wg.Done()
+	<-wait_group_pool
 
 	if !track.Local && !*arg_disable_normalization {
 		var (
@@ -559,6 +565,8 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 	if err != nil {
 		gui.WarnAppend(fmt.Sprintf("Unable to move song to its final path: %s", err.Error()), spttb_gui.PanelRight)
 	}
+
+	wait_group_pool <- true
 }
 
 func CleanJunks() int {

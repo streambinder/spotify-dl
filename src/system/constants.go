@@ -15,6 +15,8 @@ const (
 	VERSION_ORIGIN     = "https://api.github.com/repos/streambinder/spotitube/releases/latest"
 	VERSION_URL        = VERSION_REPOSITORY + "/releases/latest"
 
+	CONCURRENCY_LIMIT = 100
+
 	DEFAULT_EXTENSION    = ".mp3"
 	DEFAULT_TCP_CHECK    = "github.com:443"
 	DEFAULT_HTTP_TIMEOUT = 3 // second(s)
