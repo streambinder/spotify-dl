@@ -1,6 +1,7 @@
 package youtube
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -118,35 +119,29 @@ func (youtube_tracks *YouTubeTracks) Next() (*YouTubeTrack, error) {
 	return &YouTubeTrack{}, errors.New("YouTube video URL not found")
 }
 
-func (youtube_track YouTubeTrack) Match(track spttb_track.Track) bool {
-	// item_title := strings.ToLower(youtube_track.Title)
-
+func (youtube_track YouTubeTrack) Match(track spttb_track.Track) error {
 	if int(math.Abs(float64(track.Duration-youtube_track.Duration))) > spttb_system.YOUTUBE_DURATION_TOLERANCE {
-		// logger.Debug(fmt.Sprintf("The duration difference is excessive: | %d - %d | = %d (max tolerated: %d)",
-		// 	track.Duration, youtube_track.Duration, int(math.Abs(float64(track.Duration-youtube_track.Duration))), YOUTUBE_DURATION_TOLERANCE))
-		return false
+		return errors.New(fmt.Sprintf("The duration difference is excessive: | %d - %d | = %d (max tolerated: %d)",
+			track.Duration, youtube_track.Duration, int(math.Abs(float64(track.Duration-youtube_track.Duration))), spttb_system.YOUTUBE_DURATION_TOLERANCE))
 	}
-
 	if strings.Contains(youtube_track.URL, "&list=") || strings.Contains(youtube_track.URL, "/user/") {
-		// logger.Debug("Track is actually pointing to playlist or user.")
-		return false
-	} else if track.Seems(youtube_track.Title) {
-		// logger.Log("Video \"" + youtube_track.Title + "\" matches with track \"" + track.Artist + " - " + track.Title + "\".")
-		return true
+		return errors.New("Track is actually pointing to playlist or user.")
 	}
-
-	return false
+	if err := track.Seems(youtube_track.Title); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (track YouTubeTrack) Download() error {
-	// logger.Log("Going to download \"" + track.URL + "\" to \"" + track.Track.FilenameTemporary() + "\".")
+	var command_out bytes.Buffer
 	command_cmd := "youtube-dl"
 	command_args := []string{"--output", track.Track.FilenameTemp + ".%(ext)s", "--format", "bestaudio", "--extract-audio", "--audio-format", track.Track.FilenameExt[1:], "--audio-quality", "0", track.URL}
-	_, err := exec.Command(command_cmd, command_args...).Output()
-	if err != nil {
-		return errors.New("Something went wrong while executing \"" + command_cmd + " " + strings.Join(command_args, " ") + "\": " + err.Error())
+	command_obj := exec.Command(command_cmd, command_args...)
+	command_obj.Stderr = &command_out
+	if command_err := command_obj.Run(); command_err != nil {
+		return errors.New(fmt.Sprintf("Something went wrong while executing \"%s %s\":\n%s", command_cmd, strings.Join(command_args, " "), command_out.String()))
 	}
-	// logger.Log("Song downloaded to: \"" + track.Track.FilenameTemporary() + "\".")
 	return nil
 }
 

@@ -220,22 +220,22 @@ func (track Track) TempFiles() []string {
 	}
 }
 
-func (track Track) Seems(sequence string) bool {
-	if !track.SeemsByWordMatch(sequence) ||
-		strings.Contains(strings.ToLower(sequence), "full album") {
-		return false
+func (track Track) Seems(sequence string) error {
+	if err := track.SeemsByWordMatch(sequence); err != nil {
+		return err
 	}
-
+	if strings.Contains(strings.ToLower(sequence), "full album") {
+		return errors.New("Item seems to be pointing to an album, not to a song.")
+	}
 	for _, song_type := range SongTypes {
 		if SeemsType(sequence, song_type) && track.SongType != song_type {
-			return false
+			return errors.New("Songs seem to be of different types.")
 		}
 	}
-
-	return true
+	return nil
 }
 
-func (track Track) SeemsByWordMatch(sequence string) bool {
+func (track Track) SeemsByWordMatch(sequence string) error {
 	sequence = sanitize.Name(strings.ToLower(sequence))
 	for _, track_item := range append([]string{track.Song, track.Artist}, track.Featurings...) {
 		track_item = strings.ToLower(track_item)
@@ -251,10 +251,10 @@ func (track Track) SeemsByWordMatch(sequence string) bool {
 		track_item = strings.TrimSpace(track_item)
 		track_item = sanitize.Name(track_item)
 		if !strings.Contains(sequence, track_item) {
-			return false
+			return errors.New("Songs seem to be mismatching by words comparison.")
 		}
 	}
-	return true
+	return nil
 }
 
 func (track Track) ReadFrame(name string) string {

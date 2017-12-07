@@ -3,6 +3,7 @@ package gui
 import (
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"sync"
 
@@ -40,6 +41,9 @@ const (
 	FontStyleBold = iota
 	FontStyleUnderline
 	FontStyleReverse
+	_
+	ParagraphStyleStandard = iota
+	ParagraphStyleAutoReturn
 	_
 	LogWrite = iota
 	LogNoWrite
@@ -134,10 +138,14 @@ func (gui *Gui) Append(message string, panel int, options ...int) error {
 	if err != nil {
 		return err
 	} else {
-		if (len(options) <= 3 || options[3] == LogWrite) && gui.Logger != nil {
+		if (len(options) <= 4 || options[4] == LogWrite) && gui.Logger != nil {
 			gui.Logger.Append(message)
 		}
 		gui.Update(func(gui *gocui.Gui) error {
+			if len(options) > 3 && options[3] >= 0 {
+				width, _ := view.Size()
+				message = MessageParagraphStyle(message, options[3], width)
+			}
 			if len(options) > 2 && options[2] >= 0 {
 				message = MessageStyle(message, options[2])
 			}
@@ -198,10 +206,10 @@ func (gui *Gui) Prompt(message string, options ...int) error {
 			view *gocui.View
 			err  error
 		)
-		gui_weight, gui_height := gui.Size()
+		gui_width, gui_height := gui.Size()
 		if view, err = gui.SetView("GuiPrompt",
-			gui_weight/2-(len(message)/2)-2, gui_height/2,
-			gui_weight/2+(len(message)/2), gui_height/2+2); err != nil {
+			gui_width/2-(len(message)/2)-2, gui_height/2,
+			gui_width/2+(len(message)/2), gui_height/2+2); err != nil {
 			if err != gocui.ErrUnknownView {
 				return err
 			}
@@ -230,19 +238,24 @@ func (gui *Gui) PromptInput(message string, options ...int) bool {
 			view *gocui.View
 			err  error
 		)
-		gui_weight, gui_height := gui.Size()
+		message = fmt.Sprintf("%s\n\nPress TAB to cancel, ENTER to confirm.", message)
+		gui_width, gui_height := gui.Size()
+		needed_width, needed_height := 0, strings.Count(message, "\n")
+		for _, line := range strings.Split(message, "\n") {
+			if len(line) > needed_width {
+				needed_width = len(line)
+			}
+		}
+		needed_width += 2
 		if view, err = gui.SetView("GuiPrompt",
-			gui_weight/2-(len(message)/2)-2, gui_height/2,
-			gui_weight/2+(len(message)/2), gui_height/2+2); err != nil {
+			gui_width/2-(int(needed_width/2))-2, (gui_height/2)-int(math.Floor(float64(needed_height/2))),
+			gui_width/2+(int(needed_width/2)), (gui_height/2)+int(math.Ceil(float64(needed_height/2)))+3); err != nil {
 			if err != gocui.ErrUnknownView {
 				return err
 			}
-			fmt.Fprintln(view, MessageOrientate(fmt.Sprintf("%s\n(ESC to cancel, ENTER to ok)", message), view, OrientationCenter))
-			if len(options) == 0 {
-				options = append(options, PromptDismissable)
-			}
 			gui.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, GuiDismissPromptWithInputOk)
-			gui.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, GuiDismissPromptWithInputNok)
+			gui.SetKeybinding("", gocui.KeyTab, gocui.ModNone, GuiDismissPromptWithInputNok)
+			fmt.Fprintln(view, MessageOrientate(message, view, OrientationCenter))
 		}
 		return nil
 	})
@@ -253,23 +266,23 @@ func (gui *Gui) PromptInput(message string, options ...int) bool {
  * Auxiliary functions
  */
 func GuiSTDLayout(gui *gocui.Gui) error {
-	gui_max_weight, gui_max_height := gui.Size()
+	gui_max_width, gui_max_height := gui.Size()
 	if view, err := gui.SetView("GuiPanelLeftTop", 0, 0,
-		gui_max_weight/3, gui_max_height/2); err != nil {
+		gui_max_width/3, gui_max_height/2); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		view.Autoscroll = true
 	}
 	if view, err := gui.SetView("GuiPanelLeftBottom", 0, gui_max_height/2+1,
-		gui_max_weight/3, gui_max_height-1); err != nil {
+		gui_max_width/3, gui_max_height-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		view.Autoscroll = true
 	}
-	if view, err := gui.SetView("GuiPanelRight", gui_max_weight/3+1, 0,
-		gui_max_weight-1, gui_max_height-1); err != nil {
+	if view, err := gui.SetView("GuiPanelRight", gui_max_width/3+1, 0,
+		gui_max_width-1, gui_max_height-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -309,6 +322,23 @@ func MessageStyle(message string, style_const int) string {
 	return style_func.Sprintf(message)
 }
 
+func MessageParagraphStyle(message string, style_const int, width int) string {
+	if style_const == ParagraphStyleAutoReturn {
+		var message_paragraph string
+		for len(message) > 0 {
+			if len(message) < width {
+				message_paragraph = message_paragraph + message[:len(message)]
+				message = ""
+			} else {
+				message_paragraph = message_paragraph + message[:width] + "\n"
+				message = message[width:]
+			}
+		}
+		return message_paragraph
+	}
+	return message
+}
+
 func ReplaceOptions(options []int, element_index int, element_value int) []int {
 	if len(options) > element_index {
 		options[element_index] = element_value
@@ -344,18 +374,22 @@ func GuiDismissPromptWithInput(gui *gocui.Gui, view *gocui.View) error {
 		return nil
 	})
 	gui.DeleteKeybinding("", gocui.KeyEnter, gocui.ModNone)
-	gui.DeleteKeybinding("", gocui.KeyEsc, gocui.ModNone)
+	gui.DeleteKeybinding("", gocui.KeyTab, gocui.ModNone)
 	return nil
 }
 
 func GuiDismissPromptWithInputOk(gui *gocui.Gui, view *gocui.View) error {
-	GuiDismissPromptWithInput(gui, view)
+	if err := GuiDismissPromptWithInput(gui, view); err != nil {
+		return err
+	}
 	gui_prompt_dismiss <- true
 	return nil
 }
 
 func GuiDismissPromptWithInputNok(gui *gocui.Gui, view *gocui.View) error {
-	GuiDismissPromptWithInput(gui, view)
+	if err := GuiDismissPromptWithInput(gui, view); err != nil {
+		return err
+	}
 	gui_prompt_dismiss <- false
 	return nil
 }

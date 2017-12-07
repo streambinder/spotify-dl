@@ -179,7 +179,10 @@ func main() {
 		Exit(1 * time.Second)
 	}()
 
-	if !spotify_client.Auth() {
+	spotify_auth_url := spttb_spotify.AuthUrl()
+	gui.Append(fmt.Sprintf("Authentication URL: %s", spotify_auth_url), spttb_gui.PanelRight, spttb_gui.OptionNil, spttb_gui.OptionNil, spttb_gui.OptionNil, spttb_gui.ParagraphStyleAutoReturn)
+	gui.DebugAppend("Waiting for automatic login process. If wait is too long, manually open that URL.", spttb_gui.PanelRight)
+	if !spotify_client.Auth(spotify_auth_url) {
 		gui.Prompt("Unable to authenticate to spotify.", spttb_gui.PromptDismissableWithExit)
 	}
 
@@ -187,9 +190,12 @@ func main() {
 		tracks_online            []api.FullTrack
 		tracks_online_albums     []api.FullAlbum
 		tracks_online_albums_ids []api.ID
+		tracks_err               error
 	)
 	if *arg_playlist == "none" {
-		tracks_online = spotify_client.LibraryTracks()
+		if tracks_online, tracks_err = spotify_client.LibraryTracks(); tracks_err != nil {
+			gui.Prompt(fmt.Sprintf("Something went wrong while fetching playlist: %s.", tracks_err.Error()), spttb_gui.PromptDismissableWithExit)
+		}
 	} else {
 		var playlist_err error
 		playlist_info, playlist_err = spotify_client.Playlist(*arg_playlist)
@@ -198,14 +204,18 @@ func main() {
 		} else {
 			gui.Append(fmt.Sprintf("Playlist name: %s", playlist_info.Name), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
 			gui.Append(fmt.Sprintf("Playlist owner: %s", playlist_info.Owner.DisplayName), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
-			gui.Append(fmt.Sprintf("Getting songs from \"%s\" playlist, by \"%s\"...", playlist_info.Name, playlist_info.Owner.DisplayName), spttb_gui.PanelRight, spttb_gui.OrientationCenter)
-			tracks_online = spotify_client.PlaylistTracks(*arg_playlist)
+			gui.Append(fmt.Sprintf("Getting songs from \"%s\" playlist, by \"%s\"...", playlist_info.Name, playlist_info.Owner.DisplayName), spttb_gui.PanelRight)
+			if tracks_online, tracks_err = spotify_client.PlaylistTracks(*arg_playlist); tracks_err != nil {
+				gui.Prompt(fmt.Sprintf("Something went wrong while fetching playlist: %s.", tracks_err.Error()), spttb_gui.PromptDismissableWithExit)
+			}
 		}
 	}
 	for _, track := range tracks_online {
 		tracks_online_albums_ids = append(tracks_online_albums_ids, track.Album.ID)
 	}
-	tracks_online_albums = spotify_client.Albums(tracks_online_albums_ids)
+	if tracks_online_albums, tracks_err = spotify_client.Albums(tracks_online_albums_ids); tracks_err != nil {
+		gui.Prompt(fmt.Sprintf("Something went wrong while fetching album info: %s.", tracks_err.Error()), spttb_gui.PromptDismissableWithExit)
+	}
 
 	gui.Append("Checking which songs need to be downloaded...", spttb_gui.PanelRight)
 	var tracks_duplicates = 0
@@ -243,65 +253,74 @@ func main() {
 				}
 
 				var youtube_track *spttb_youtube.YouTubeTrack
-				for {
-					if !youtube_tracks.HasNext() {
-						gui.ErrAppend(fmt.Sprintf("Video for \"%s\" not found.", track.Filename), spttb_gui.PanelRight)
-						break
-					}
+				var track_picked bool = false
+				for youtube_tracks.HasNext() {
+					var (
+						ans_input     bool = false
+						ans_automated bool = false
+						ans_err       error
+					)
 					if youtube_track, err = youtube_tracks.Next(); err != nil {
 						gui.WarnAppend(fmt.Sprintf("Faulty result: %s.", err.Error()), spttb_gui.PanelRight)
 						continue
 					}
 
-					gui.DebugAppend(fmt.Sprintf("Result picked: ID: %s,\ntitle: %s,\nuser: %s,\nduration: %d.",
+					gui.DebugAppend(fmt.Sprintf("Result met: ID: %s,\n  Title: %s,\n  User: %s,\n  Duration: %d.",
 						youtube_track.ID, youtube_track.Title, youtube_track.User, youtube_track.Duration), spttb_gui.PanelRight)
 
-					var (
-						ans_input     bool
-						ans_automated bool
-					)
-					if *arg_interactive {
-						ans_input = false
-						ans_automated = youtube_track.Match(track)
+					ans_err = youtube_track.Match(track)
+					ans_automated = bool(ans_err == nil)
+					if !*arg_interactive && ans_err != nil {
+						gui.ErrAppend(fmt.Sprintf("\"%s\" seems not the one we're looking for: %s", youtube_track.Title, ans_err.Error()), spttb_gui.PanelRight)
+					} else if *arg_interactive {
 						var ans_automated_msg string
 						if ans_automated {
-							ans_automated_msg = "I would do it"
+							ans_automated_msg = "I would."
 						} else {
-							ans_automated_msg = "I wouldn't do it"
+							ans_automated_msg = "I wouldn't."
 						}
-						ans_input = gui.PromptInput(fmt.Sprintf("Do you want to download %s's video \"%s\" at \"%s\" (%s)?",
-							youtube_track.User, youtube_track.Title, youtube_track.URL, ans_automated_msg))
-						if !ans_input {
-							continue
-						}
+						ans_input = gui.PromptInput(fmt.Sprintf("Do you want to download \"%s\" by \"%s\" at %s?\n%s",
+							youtube_track.Title, youtube_track.User, youtube_track.URL, ans_automated_msg))
 					}
-
 					if ans_input || ans_automated {
-						track.URL = youtube_track.URL
+						gui.Append(fmt.Sprintf("\"%s\" is good to go for \"%s\".", youtube_track.Title, track.Filename), spttb_gui.PanelRight)
+						track_picked = true
+						break
+					} else {
+						gui.Append(fmt.Sprintf("Result ignored: \"%s\".", youtube_track.Title), spttb_gui.PanelRight)
 					}
+				}
 
-					if *arg_simulate {
-						gui.Append(fmt.Sprintf("I would like to download \"%s\" for \"%s\" track, but I'm just simulating.", youtube_track.URL, track.Filename), spttb_gui.PanelRight)
-						continue
-					} else if *arg_replace_local {
-						if track.URL == youtube_track.URL {
-							gui.Append(fmt.Sprintf("Track \"%s\" is still the best result I can find.", track.Filename), spttb_gui.PanelRight)
-							continue
-						} else {
-							track.URL = ""
-							track.Local = false
-							os.Remove(track.FilenameFinal())
-						}
-					}
+				if track_picked {
+					track.URL = youtube_track.URL
+				} else {
+					gui.ErrAppend(fmt.Sprintf("Video for \"%s\" not found.", track.Filename), spttb_gui.PanelRight)
+					tracks_failed = append(tracks_failed, track)
+					continue
+				}
 
-					err = youtube_track.Download()
-					if err != nil {
-						gui.WarnAppend(fmt.Sprintf("Something went wrong downloading \"%s\": %s.", track.Filename, err.Error()), spttb_gui.PanelRight)
-						tracks_failed = append(tracks_failed, track)
+				if *arg_simulate {
+					gui.Append(fmt.Sprintf("I would like to download \"%s\" for \"%s\" track, but I'm just simulating.", youtube_track.URL, track.Filename), spttb_gui.PanelRight)
+					continue
+				} else if *arg_replace_local {
+					if track.URL == youtube_track.URL {
+						gui.Append(fmt.Sprintf("Track \"%s\" is still the best result I can find.", track.Filename), spttb_gui.PanelRight)
 						continue
 					} else {
-						track.URL = youtube_track.URL
+						track.URL = ""
+						track.Local = false
+						os.Remove(track.FilenameFinal())
 					}
+				}
+
+				gui.Append(fmt.Sprintf("Going to download \"%s\" from %s...", youtube_track.Title, youtube_track.URL), spttb_gui.PanelRight)
+				err = youtube_track.Download()
+				if err != nil {
+					gui.WarnAppend(fmt.Sprintf("Something went wrong downloading \"%s\": %s.", track.Filename, err.Error()), spttb_gui.PanelRight)
+					tracks_failed = append(tracks_failed, track)
+					continue
+				} else {
+					track.URL = youtube_track.URL
 				}
 			}
 
@@ -369,6 +388,9 @@ func main() {
 	} else {
 		gui.Prompt("No song needs to be downloaded.", spttb_gui.PromptDismissableWithExit)
 	}
+
+	CleanJunks()
+	Exit()
 }
 
 func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {

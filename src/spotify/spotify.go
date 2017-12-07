@@ -1,6 +1,7 @@
 package spotify
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -30,7 +31,12 @@ func NewClient() *Spotify {
 	return &Spotify{}
 }
 
-func (spotify *Spotify) Auth() bool {
+func AuthUrl() string {
+	client_authenticator.SetAuthInfo(spttb_system.SPOTIFY_CLIENT_ID, spttb_system.SPOTIFY_CLIENT_SECRET)
+	return client_authenticator.AuthURL(client_state)
+}
+
+func (spotify *Spotify) Auth(url string) bool {
 	http.HandleFunc("/favicon.ico", HttpFaviconHandler)
 	http.HandleFunc("/callback", HttpCompleteAuthHandler)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -38,27 +44,19 @@ func (spotify *Spotify) Auth() bool {
 	})
 	go http.ListenAndServe(":8080", nil)
 
-	client_authenticator.SetAuthInfo(spttb_system.SPOTIFY_CLIENT_ID, spttb_system.SPOTIFY_CLIENT_SECRET)
-	url := client_authenticator.AuthURL(client_state)
-	// logger.Log("I'm trying to open URL for you.")
-	// logger.Debug("If something is misbehaving, please visit this URL:\n" + url)
 	command_cmd := "xdg-open"
 	command_args := []string{url}
 	_, err := exec.Command(command_cmd, command_args...).Output()
 	if err != nil {
-		// logger.Log("Something went wrong while executing trying to make the default browser open the authorization URL.\n" +
-		// 	"Please, open the URL and accept manually.")
+		return false
 	}
 
-	// logger.Log("Waiting for authentication process to complete.")
-	client := <-client_channel
-	spotify.Client = client
+	spotify.Client = <-client_channel
 
 	return true
 }
 
-func (spotify *Spotify) LibraryTracks() []api.FullTrack {
-	// logger.Log("Reading user library.")
+func (spotify *Spotify) LibraryTracks() ([]api.FullTrack, error) {
 	var tracks []api.FullTrack
 	var iterations int = 0
 	var options api.Options = spotify.DefaultOptions()
@@ -66,7 +64,7 @@ func (spotify *Spotify) LibraryTracks() []api.FullTrack {
 		*options.Offset = *options.Limit * iterations
 		chunk, err := spotify.Client.CurrentUsersTracksOpt(&options)
 		if err != nil {
-			// logger.Fatal("Something gone wrong while reading " + strconv.Itoa(iterations) + "th chunk of tracks: " + err.Error() + ".")
+			return []api.FullTrack{}, errors.New(fmt.Sprintf("Something gone wrong while reading %dth chunk of tracks: %s.", iterations, err.Error()))
 		}
 		for _, track := range chunk.Tracks {
 			tracks = append(tracks, track.FullTrack)
@@ -76,18 +74,16 @@ func (spotify *Spotify) LibraryTracks() []api.FullTrack {
 		}
 		iterations++
 	}
-	return tracks
+	return tracks, nil
 }
 
 func (spotify *Spotify) Playlist(playlist_uri string) (*api.FullPlaylist, error) {
-	// logger.Log("Fetching " + playlist_uri + " informations.")
 	playlist_owner, playlist_id := spotify.ParsePlaylistUri(playlist_uri)
 	return spotify.Client.GetPlaylist(playlist_owner, playlist_id)
 }
 
-func (spotify *Spotify) PlaylistTracks(playlist_uri string) []api.FullTrack {
+func (spotify *Spotify) PlaylistTracks(playlist_uri string) ([]api.FullTrack, error) {
 	playlist_owner, playlist_id := spotify.ParsePlaylistUri(playlist_uri)
-	// logger.Log("Reading playlist with ID \"" + string(playlist_id) + "\".")
 	var tracks []api.FullTrack
 	var iterations int = 0
 	var options api.Options = spotify.DefaultOptions()
@@ -95,7 +91,7 @@ func (spotify *Spotify) PlaylistTracks(playlist_uri string) []api.FullTrack {
 		*options.Offset = *options.Limit * iterations
 		chunk, err := spotify.Client.GetPlaylistTracksOpt(playlist_owner, playlist_id, &options, "")
 		if err != nil {
-			// logger.Fatal("Something gone wrong while reading " + strconv.Itoa(iterations) + "th chunk of tracks: " + err.Error() + ".")
+			return []api.FullTrack{}, errors.New(fmt.Sprintf("Something gone wrong while reading %dth chunk of tracks: %s.", iterations, err.Error()))
 		}
 		for _, track := range chunk.Tracks {
 			tracks = append(tracks, track.Track)
@@ -105,10 +101,10 @@ func (spotify *Spotify) PlaylistTracks(playlist_uri string) []api.FullTrack {
 		}
 		iterations++
 	}
-	return tracks
+	return tracks, nil
 }
 
-func (spotify *Spotify) Albums(ids []api.ID) []api.FullAlbum {
+func (spotify *Spotify) Albums(ids []api.ID) ([]api.FullAlbum, error) {
 	var albums []api.FullAlbum
 	var iterations int = 0
 	var upperbound, lowerbound int
@@ -119,7 +115,7 @@ func (spotify *Spotify) Albums(ids []api.ID) []api.FullAlbum {
 		}
 		chunk, err := spotify.Client.GetAlbums(ids[lowerbound:upperbound]...)
 		if err != nil {
-			// logger.Warn("Something gone wrong in " + strconv.Itoa(iterations) + "th chunk of albums: " + err.Error() + ".")
+			return []api.FullAlbum{}, errors.New(fmt.Sprintf("Something gone wrong in %dth chunk of albums: %s.", iterations, err.Error()))
 		}
 		for _, album := range chunk {
 			albums = append(albums, *album)
@@ -129,7 +125,7 @@ func (spotify *Spotify) Albums(ids []api.ID) []api.FullAlbum {
 		}
 		iterations++
 	}
-	return albums
+	return albums, nil
 }
 
 func (spotify *Spotify) DefaultOptions() api.Options {
