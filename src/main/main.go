@@ -267,7 +267,7 @@ func main() {
 						ans_err       error
 					)
 					if youtube_track, err = youtube_tracks.Next(); err != nil {
-						gui.WarnAppend(fmt.Sprintf("Faulty result: %s.", err.Error()), spttb_gui.PanelRight)
+						gui.DebugAppend(fmt.Sprintf("Faulty result: %s.", err.Error()), spttb_gui.PanelRight)
 						continue
 					}
 
@@ -277,7 +277,7 @@ func main() {
 					ans_err = youtube_track.Match(track)
 					ans_automated = bool(ans_err == nil)
 					if !*arg_interactive && ans_err != nil {
-						gui.WarnAppend(fmt.Sprintf("\"%s\" seems not the one we're looking for: %s", youtube_track.Title, ans_err.Error()), spttb_gui.PanelRight)
+						gui.DebugAppend(fmt.Sprintf("\"%s\" seems not the one we're looking for: %s", youtube_track.Title, ans_err.Error()), spttb_gui.PanelRight)
 					} else if *arg_interactive {
 						var ans_automated_msg string
 						if ans_automated {
@@ -289,7 +289,7 @@ func main() {
 							youtube_track.Title, youtube_track.User, youtube_track.URL, ans_automated_msg))
 					}
 					if ans_input || ans_automated {
-						gui.Append(fmt.Sprintf("\"%s\" is good to go for \"%s\".", youtube_track.Title, track.Filename), spttb_gui.PanelRight)
+						gui.Append(fmt.Sprintf("Video \"%s\" is good to go for \"%s\".", youtube_track.Title, track.Filename), spttb_gui.PanelRight)
 						track_picked = true
 						break
 					}
@@ -332,10 +332,23 @@ func main() {
 				continue
 			}
 
-			if !*arg_disable_lyrics {
-				err := (&track).SearchLyrics()
-				if err != nil {
-					gui.WarnAppend(fmt.Sprintf("Something went wrong while searching for song \"%s\" lyrics: %s", track.Filename, err.Error()), spttb_gui.PanelRight)
+			if (track.Local && *arg_flush_metadata) || !track.Local {
+				if !*arg_disable_lyrics {
+					err := (&track).SearchLyrics()
+					if err != nil {
+						gui.WarnAppend(fmt.Sprintf("Something went wrong while searching for song \"%s\" lyrics: %s", track.Filename, err.Error()), spttb_gui.PanelRight)
+					}
+				}
+
+				if !spttb_system.FileExists(track.FilenameArtwork()) {
+					var command_out bytes.Buffer
+					command_cmd := "ffmpeg"
+					command_args := []string{"-i", track.Image, "-q:v", "1", "-n", track.FilenameArtwork()}
+					command_obj := exec.Command(command_cmd, command_args...)
+					command_obj.Stderr = &command_out
+					if err := command_obj.Run(); err != nil {
+						gui.WarnAppend(fmt.Sprintf("Unable to download artwork file \"%s\": %s", track.Image, command_out.String()), spttb_gui.PanelRight)
+					}
 				}
 			}
 
@@ -463,28 +476,9 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 	}
 
 	if (track.Local && *arg_flush_metadata) || !track.Local {
-		var (
-			command_cmd          string   = "ffmpeg"
-			command_args         []string = []string{"-i", track.Image, "-q:v", "1", track.FilenameArtworkTemporary()}
-			track_artwork_err    error
-			track_artwork_reader []byte
-		)
-		if !spttb_system.FileExists(track.FilenameArtwork()) {
-			_, track_artwork_err = exec.Command(command_cmd, command_args...).Output()
-			if track_artwork_err != nil {
-				gui.WarnAppend(fmt.Sprintf("Unable to download artwork file \"%s\": %s", track.Image, track_artwork_err.Error()), spttb_gui.PanelRight)
-			} else {
-				os.Rename(track.FilenameArtworkTemporary(), track.FilenameArtwork())
-			}
-		} else {
-			track_artwork_err = nil
-			gui.DebugAppend(fmt.Sprintf("Already download album \"%s\" artwork will be used.", track.Album), spttb_gui.PanelRight)
-		}
-		if track_artwork_err == nil {
-			track_artwork_reader, track_artwork_err = ioutil.ReadFile(track.FilenameArtwork())
-			if track_artwork_err != nil {
-				gui.WarnAppend(fmt.Sprintf("Unable to read artwork file: %s", track_artwork_err.Error()), spttb_gui.PanelRight)
-			}
+		var track_artwork_reader, track_artwork_err = ioutil.ReadFile(track.FilenameArtwork())
+		if track_artwork_err != nil {
+			gui.WarnAppend(fmt.Sprintf("Unable to read artwork file: %s", track_artwork_err.Error()), spttb_gui.PanelRight)
 		}
 
 		track_mp3, err := id3.Open(track.FilenameTemporary(), id3.Options{Parse: true})

@@ -204,10 +204,6 @@ func (track Track) FilenameArtwork() string {
 	return "." + strings.Split(track.Image, "/")[len(strings.Split(track.Image, "/"))-1] + ".jpg"
 }
 
-func (track Track) FilenameArtworkTemporary() string {
-	return "." + strings.Split(track.Image, "/")[len(strings.Split(track.Image, "/"))-1] + ".jpg"
-}
-
 func (track Track) TempFiles() []string {
 	return []string{track.FilenameTemp,
 		track.FilenameTemporary(),

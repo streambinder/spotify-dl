@@ -138,9 +138,6 @@ func (gui *Gui) Append(message string, panel int, options ...int) error {
 	if err != nil {
 		return err
 	} else {
-		if (len(options) <= 4 || options[4] == LogWrite) && gui.Logger != nil {
-			gui.Logger.Append(message)
-		}
 		gui.Update(func(gui *gocui.Gui) error {
 			if len(options) > 3 && options[3] >= 0 {
 				width, _ := view.Size()
@@ -176,21 +173,33 @@ func (gui *Gui) ClearAppend(message string, panel int, options ...int) error {
 }
 
 func (gui *Gui) ErrAppend(message string, panel int, options ...int) error {
-	return gui.Append(message, panel, ReplaceOptions(options, 1, FontColorRed)...)
+	if (len(options) <= 4 || options[4] == LogWrite) && gui.Logger != nil {
+		gui.Logger.Append(fmt.Sprintf("[ERROR] %s", message))
+	}
+	options = ReplaceOptions(options, 1, FontColorRed)
+	options = ReplaceOptions(options, 3, ParagraphStyleAutoReturn)
+	return gui.Append(message, panel, options...)
 }
 
 func (gui *Gui) WarnAppend(message string, panel int, options ...int) error {
-	return gui.Append(message, panel, ReplaceOptions(options, 1, FontColorYellow)...)
+	if (len(options) <= 4 || options[4] == LogWrite) && gui.Logger != nil {
+		gui.Logger.Append(fmt.Sprintf("[WARNING] %s", message))
+	}
+	options = ReplaceOptions(options, 1, FontColorYellow)
+	options = ReplaceOptions(options, 3, ParagraphStyleAutoReturn)
+	return gui.Append(message, panel, options...)
 }
 
 func (gui *Gui) DebugAppend(message string, panel int, options ...int) error {
+	if (len(options) <= 4 || options[4] == LogWrite) && gui.Logger != nil {
+		gui.Logger.Append(fmt.Sprintf("[DEBUG] %s", message))
+	}
 	if !gui.Verbose {
-		if gui.Logger != nil {
-			return gui.Logger.Append(message)
-		}
 		return nil
 	} else {
-		return gui.Append(message, panel, ReplaceOptions(options, 1, FontColorMagenta)...)
+		options = ReplaceOptions(options, 1, FontColorMagenta)
+		options = ReplaceOptions(options, 3, ParagraphStyleAutoReturn)
+		return gui.Append(message, panel, options...)
 	}
 }
 
@@ -345,7 +354,7 @@ func ReplaceOptions(options []int, element_index int, element_value int) []int {
 	} else if len(options) == element_index {
 		options = append(options, element_value)
 	} else {
-		for i := 0; i < element_index; i++ {
+		for i := len(options); i < element_index; i++ {
 			options = append(options, -1)
 		}
 		options = append(options, element_value)
