@@ -96,7 +96,7 @@ func main() {
 	}
 
 	gui = spttb_gui.Build(*arg_debug)
-	gui.Append(fmt.Sprintf("SPOTITUBE\nVersion: %d\nFolder: %s", spttb_system.VERSION, *arg_folder), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("Version: %d\nFolder: %s", spttb_system.VERSION, *arg_folder), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
 	if *arg_log {
 		gui.Append(fmt.Sprintf("Log filename: %s", spttb_system.DEFAULT_LOG_PATH), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
 
@@ -271,7 +271,7 @@ func main() {
 						continue
 					}
 
-					gui.DebugAppend(fmt.Sprintf("Result met: ID: %s,\n  Title: %s,\n  User: %s,\n  Duration: %d.",
+					gui.DebugAppend(fmt.Sprintf("Result met: ID: %s,\nTitle: %s,\nUser: %s,\nDuration: %d.",
 						youtube_track.ID, youtube_track.Title, youtube_track.User, youtube_track.Duration), spttb_gui.PanelRight)
 
 					ans_err = youtube_track.Match(track)
@@ -281,17 +281,31 @@ func main() {
 					} else if *arg_interactive {
 						var ans_automated_msg string
 						if ans_automated {
-							ans_automated_msg = "I would."
+							ans_automated_msg = "I would download it."
 						} else {
-							ans_automated_msg = "I wouldn't."
+							ans_automated_msg = "I wouldn't download it."
 						}
-						ans_input = gui.PromptInput(fmt.Sprintf("Do you want to download \"%s\" by \"%s\" at %s?\n%s",
-							youtube_track.Title, youtube_track.User, youtube_track.URL, ans_automated_msg))
+						ans_input = gui.PromptInput(fmt.Sprintf("Do you want to download the following video for \"%s\"?\n"+
+							"ID: %s\nTitle: %s\nUser: %s\nDuration: %d\nURL: %s\n\n%s",
+							track.Filename, youtube_track.ID, youtube_track.Title, youtube_track.User,
+							youtube_track.Duration, youtube_track.URL, ans_automated_msg))
 					}
-					if ans_input || ans_automated {
+					if (*arg_interactive && ans_input) || (!*arg_interactive && ans_automated) {
 						gui.Append(fmt.Sprintf("Video \"%s\" is good to go for \"%s\".", youtube_track.Title, track.Filename), spttb_gui.PanelRight)
 						track_picked = true
 						break
+					}
+				}
+
+				if *arg_interactive && !track_picked {
+					input_url := gui.PromptInputMessage("Video not found. Please, enter URL manually", spttb_gui.PromptDismissable)
+					if len(input_url) > 0 {
+						if err := spttb_youtube.ValidateURL(input_url); err != nil {
+							gui.Prompt(fmt.Sprintf("Something went wrong: %s", err.Error()), spttb_gui.PromptDismissable)
+						} else {
+							track_picked = true
+							youtube_track = &spttb_youtube.YouTubeTrack{Track: &track, Title: "input video", URL: input_url}
+						}
 					}
 				}
 

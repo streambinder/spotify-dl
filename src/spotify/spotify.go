@@ -115,7 +115,7 @@ func (spotify *Spotify) Albums(ids []api.ID) ([]api.FullAlbum, error) {
 		}
 		chunk, err := spotify.Client.GetAlbums(ids[lowerbound:upperbound]...)
 		if err != nil {
-			return []api.FullAlbum{}, errors.New(fmt.Sprintf("Something gone wrong in %dth chunk of albums: %s.", iterations, err.Error()))
+			return []api.FullAlbum{}, errors.New(fmt.Sprintf("Something gone wrong in %dth chunk [%v] of albums: %s.", iterations, ids[lowerbound:upperbound], err.Error()))
 		}
 		for _, album := range chunk {
 			albums = append(albums, *album)

@@ -71,6 +71,7 @@ var (
 
 	gui_ready          chan *gocui.Gui
 	gui_prompt_dismiss chan bool
+	gui_prompt_input   chan string
 	gui_append_mutex   sync.Mutex
 	gui_prompt_mutex   sync.Mutex
 
@@ -271,6 +272,33 @@ func (gui *Gui) PromptInput(message string, options ...int) bool {
 	return <-gui_prompt_dismiss
 }
 
+func (gui *Gui) PromptInputMessage(message string, options ...int) string {
+	gui_prompt_mutex.Lock()
+	defer gui_prompt_mutex.Unlock()
+	gui_prompt_input = make(chan string)
+	gui.Update(func(gui *gocui.Gui) error {
+		var (
+			view *gocui.View
+			err  error
+		)
+		gui_width, gui_height := gui.Size()
+		if view, err = gui.SetView("GuiPrompt",
+			gui_width/2-50, (gui_height/2)-1,
+			gui_width/2+50, (gui_height/2)+1); err != nil {
+			if err != gocui.ErrUnknownView {
+				return err
+			}
+			view.Editable = true
+			view.Title = fmt.Sprintf(" %s ", message)
+			_ = view.SetCursor(0, 0)
+			gui.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, GuiDismissPromptWithInputMessage)
+			_, _ = gui.SetCurrentView("GuiPrompt")
+		}
+		return nil
+	})
+	return strings.Replace(<-gui_prompt_input, "\n", "", -1)
+}
+
 /*
  * Auxiliary functions
  */
@@ -282,6 +310,7 @@ func GuiSTDLayout(gui *gocui.Gui) error {
 			return err
 		}
 		view.Autoscroll = true
+		view.Title = strings.ToUpper(" SpotiTube ")
 	}
 	if view, err := gui.SetView("GuiPanelLeftBottom", 0, gui_max_height/2+1,
 		gui_max_width/3, gui_max_height-1); err != nil {
@@ -289,6 +318,7 @@ func GuiSTDLayout(gui *gocui.Gui) error {
 			return err
 		}
 		view.Autoscroll = true
+		view.Title = strings.ToUpper(" Informations ")
 	}
 	if view, err := gui.SetView("GuiPanelRight", gui_max_width/3+1, 0,
 		gui_max_width-1, gui_max_height-1); err != nil {
@@ -296,6 +326,7 @@ func GuiSTDLayout(gui *gocui.Gui) error {
 			return err
 		}
 		view.Autoscroll = true
+		view.Title = strings.ToUpper(" Status ")
 	}
 
 	return nil
@@ -400,6 +431,17 @@ func GuiDismissPromptWithInputNok(gui *gocui.Gui, view *gocui.View) error {
 		return err
 	}
 	gui_prompt_dismiss <- false
+	return nil
+}
+
+func GuiDismissPromptWithInputMessage(gui *gocui.Gui, view *gocui.View) error {
+	gui.Update(func(gui *gocui.Gui) error {
+		gui.DeleteView("GuiPrompt")
+		return nil
+	})
+	gui.DeleteKeybinding("", gocui.KeyEnter, gocui.ModNone)
+	view.Rewind()
+	gui_prompt_input <- view.Buffer()
 	return nil
 }
 
