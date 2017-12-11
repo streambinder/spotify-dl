@@ -347,14 +347,14 @@ func main() {
 			}
 
 			if (track.Local && *arg_flush_metadata) || !track.Local {
-				if !*arg_disable_lyrics {
+				if !*arg_disable_lyrics || !*arg_flush_missing || (*arg_flush_missing && !track.HasID3Frame(ID3FrameLyrics)) {
 					err := (&track).SearchLyrics()
 					if err != nil {
 						gui.WarnAppend(fmt.Sprintf("Something went wrong while searching for song \"%s\" lyrics: %s", track.Filename, err.Error()), spttb_gui.PanelRight)
 					}
 				}
 
-				if !spttb_system.FileExists(track.FilenameArtwork()) {
+				if !*arg_flush_missing || (*arg_flush_missing && !track.HasID3Frame(ID3FrameArtwork) && !spttb_system.FileExists(track.FilenameArtwork())) {
 					var command_out bytes.Buffer
 					command_cmd := "ffmpeg"
 					command_args := []string{"-i", track.Image, "-q:v", "1", "-n", track.FilenameArtwork()}
@@ -503,65 +503,55 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 			if !*arg_flush_missing {
 				track_mp3.DeleteAllFrames()
 			}
-			if !*arg_flush_missing || track_mp3.Title() == "" {
+			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameTitle) {
 				track_mp3.SetTitle(track.Title)
 			}
-			if !*arg_flush_missing || track_mp3.Artist() == "" {
+			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameArtist) {
 				track_mp3.SetArtist(track.Artist)
 			}
-			if !*arg_flush_missing || track_mp3.Album() == "" {
+			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameAlbum) {
 				track_mp3.SetAlbum(track.Album)
 			}
-			if !*arg_flush_missing || track_mp3.Genre() == "" {
+			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameGenre) {
 				track_mp3.SetGenre(track.Genre)
 			}
-			if !*arg_flush_missing || track_mp3.Year() == "" {
+			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameYear) {
 				track_mp3.SetYear(track.Year)
 			}
-			if !*arg_flush_missing ||
-				len(track_mp3.GetFrames(track_mp3.CommonID("Track number/Position in set"))) == 0 {
+			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameTrackNumber) {
 				track_mp3.AddFrame(track_mp3.CommonID("Track number/Position in set"),
 					id3.TextFrame{
 						Encoding: id3.EncodingUTF8,
 						Text:     strconv.Itoa(track.TrackNumber),
 					})
 			}
-			if track_artwork_err == nil {
-				if !*arg_flush_missing ||
-					len(track_mp3.GetFrames(track_mp3.CommonID("Attached picture"))) == 0 {
-					gui.DebugAppend("Inflating artwork metadata...", spttb_gui.PanelRight)
-					track_mp3.AddAttachedPicture(id3.PictureFrame{
-						Encoding:    id3.EncodingUTF8,
-						MimeType:    "image/jpeg",
-						PictureType: id3.PTFrontCover,
-						Description: "Front cover",
-						Picture:     track_artwork_reader,
-					})
-				}
+			if track_artwork_err == nil && (!*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameArtwork)) {
+				gui.DebugAppend("Inflating artwork metadata...", spttb_gui.PanelRight)
+				track_mp3.AddAttachedPicture(id3.PictureFrame{
+					Encoding:    id3.EncodingUTF8,
+					MimeType:    "image/jpeg",
+					PictureType: id3.PTFrontCover,
+					Description: "Front cover",
+					Picture:     track_artwork_reader,
+				})
 			}
-			if len(track.URL) > 0 {
-				if !*arg_flush_missing ||
-					len(track_mp3.GetFrames(track_mp3.CommonID("Comments"))) == 0 {
-					gui.DebugAppend("Inflating youtube origin url metadata...", spttb_gui.PanelRight)
-					track_mp3.AddCommentFrame(id3.CommentFrame{
-						Encoding:    id3.EncodingUTF8,
-						Language:    "eng",
-						Description: "youtube",
-						Text:        track.URL,
-					})
-				}
+			if len(track.URL) > 0 && (!*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameYouTubeURL)) {
+				gui.DebugAppend("Inflating youtube origin url metadata...", spttb_gui.PanelRight)
+				track_mp3.AddCommentFrame(id3.CommentFrame{
+					Encoding:    id3.EncodingUTF8,
+					Language:    "eng",
+					Description: "youtube",
+					Text:        track.URL,
+				})
 			}
-			if len(track.Lyrics) > 0 {
-				if !*arg_flush_missing ||
-					len(track_mp3.GetFrames(track_mp3.CommonID("Unsynchronised lyrics/text transcription"))) == 0 {
-					gui.DebugAppend("Inflating lyrics metadata...", spttb_gui.PanelRight)
-					track_mp3.AddUnsynchronisedLyricsFrame(id3.UnsynchronisedLyricsFrame{
-						Encoding:          id3.EncodingUTF8,
-						Language:          "eng",
-						ContentDescriptor: track.Title,
-						Lyrics:            track.Lyrics,
-					})
-				}
+			if len(track.Lyrics) > 0 && !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameLyrics) {
+				gui.DebugAppend("Inflating lyrics metadata...", spttb_gui.PanelRight)
+				track_mp3.AddUnsynchronisedLyricsFrame(id3.UnsynchronisedLyricsFrame{
+					Encoding:          id3.EncodingUTF8,
+					Language:          "eng",
+					ContentDescriptor: track.Title,
+					Lyrics:            track.Lyrics,
+				})
 			}
 			track_mp3.Save()
 		}

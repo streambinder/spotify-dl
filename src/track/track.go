@@ -18,13 +18,23 @@ import (
 )
 
 const (
-	SongTypeAlbum    = iota
-	SongTypeLive     = iota
-	SongTypeCover    = iota
-	SongTypeRemix    = iota
-	SongTypeAcoustic = iota
-	SongTypeKaraoke  = iota
-	SongTypeParody   = iota
+	SongTypeAlbum = iota
+	SongTypeLive
+	SongTypeCover
+	SongTypeRemix
+	SongTypeAcoustic
+	SongTypeKaraoke
+	SongTypeParody
+	_
+	ID3FrameTitle = iota
+	ID3FrameArtist
+	ID3FrameAlbum
+	ID3FrameGenre
+	ID3FrameYear
+	ID3FrameTrackNumber
+	ID3FrameArtwork
+	ID3FrameLyrics
+	ID3FrameYouTubeURL
 )
 
 var (
@@ -186,7 +196,8 @@ func ParseSpotifyTrack(spotify_track spotify.FullTrack, spotify_album spotify.Fu
 	}
 
 	if track.Local {
-		track.URL = track.ReadFrame("youtube")
+		track.URL = track.GetID3Frame(ID3FrameYouTubeURL)
+		track.Lyrics = track.GetID3Frame(ID3FrameLyrics)
 	}
 
 	return track
@@ -253,22 +264,72 @@ func (track Track) SeemsByWordMatch(sequence string) error {
 	return nil
 }
 
-func (track Track) ReadFrame(name string) string {
+func TagGetFrame(tag *id3v2.Tag, frame int) string {
+	if frame == ID3FrameTitle {
+		return file.Title()
+	} else if frame == ID3FrameArtist {
+		return file.Artist()
+	} else if frame == ID3FrameAlbum {
+		return file.Album()
+	} else if frame == ID3FrameGenre {
+		return file.Genre()
+	} else if frame == ID3FrameYear {
+		return file.Year()
+	} else if frame == ID3FrameTrackNumber &&
+		len(file.GetFrames(file.CommonID("Track number/Position in set"))) > 0 {
+		for _, frame_text := range tag.GetFrames(tag.CommonID("Track number/Position in set")) {
+			text, ok := frame_text.(id3v2.TextFrame)
+			if ok {
+				return text.Text
+			}
+		}
+	} else if frame == ID3FrameGenre {
+		return file.Genre()
+	} else if frame == ID3FrameYear {
+		return file.Year()
+	} else if frame == ID3FrameArtwork &&
+		len(file.GetFrames(file.CommonID("Attached picture"))) > 0 {
+		for _, frame_picture := range tag.GetFrames(tag.CommonID("Attached picture")) {
+			picture, ok := frame_picture.(id3v2.PictureFrame)
+			if ok {
+				return string(picture.Picture)
+			}
+		}
+	} else if frame == ID3FrameLyrics &&
+		len(file.GetFrames(file.CommonID("Unsynchronised lyrics/text transcription"))) > 0 {
+		for _, frame_lyrics := range tag.GetFrames(tag.CommonID("Unsynchronised lyrics/text transcription")) {
+			lyrics, ok := frame_lyrics.(id3v2.UnsynchronisedLyricsFrame)
+			if ok {
+				return lyrics.Lyrics
+			}
+		}
+	} else if frame == ID3FrameYouTubeURL &&
+		len(file.GetFrames(file.CommonID("Comments"))) > 0 {
+		for _, frame_comment := range file.GetFrames(tag.CommonID("Comments")) {
+			comment, ok := frame_comment.(id3v2.CommentFrame)
+			if ok && comment.Description == "youtube" {
+				comment.Text
+			}
+		}
+	}
+	return ""
+}
+
+func TagHasFrame(tag *id3v2.Tag, frame int) bool {
+	return TagGetFrame(tag, frame) != ""
+}
+
+func (track Track) GetID3Frame(frame int) string {
 	tag, err := id3v2.Open(track.FilenameFinal(), id3v2.Options{Parse: true})
-	if tag == nil || err != nil {
+	if tag == nil || tag != nil {
 		return ""
 	}
-	defer tag.Close()
-	comments := tag.GetFrames(tag.CommonID("Comments"))
-	for _, f := range comments {
-		comment, ok := f.(id3v2.CommentFrame)
-		if !ok {
-			return ""
-		}
-		return comment.Text
-	}
+	defer file.Close()
+	return TagGetFrame(tag, frame)
+}
 
-	return ""
+func (track *Track) HasID3Frame(frame int) bool {
+	return track.GetID3Frame(frame) != ""
 }
 
 func (track *Track) SearchLyrics() error {
