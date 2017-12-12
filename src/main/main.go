@@ -347,14 +347,16 @@ func main() {
 			}
 
 			if (track.Local && *arg_flush_metadata) || !track.Local {
-				if !*arg_disable_lyrics || !*arg_flush_missing || (*arg_flush_missing && !track.HasID3Frame(ID3FrameLyrics)) {
+				if !*arg_disable_lyrics && (!*arg_flush_missing || (*arg_flush_missing && !track.HasID3Frame(spttb_track.ID3FrameLyrics))) {
+					gui.DebugAppend(fmt.Sprintf("Fetching song \"%s\" lyrics...", track.Filename), spttb_gui.PanelRight)
 					err := (&track).SearchLyrics()
 					if err != nil {
 						gui.WarnAppend(fmt.Sprintf("Something went wrong while searching for song \"%s\" lyrics: %s", track.Filename, err.Error()), spttb_gui.PanelRight)
 					}
 				}
 
-				if !*arg_flush_missing || (*arg_flush_missing && !track.HasID3Frame(ID3FrameArtwork) && !spttb_system.FileExists(track.FilenameArtwork())) {
+				if !spttb_system.FileExists(track.FilenameArtwork()) && (!*arg_flush_missing || (*arg_flush_missing && !track.HasID3Frame(spttb_track.ID3FrameArtwork))) {
+					gui.DebugAppend(fmt.Sprintf("Downloading song \"%s\" artwork at %s...", track.Filename, track.Image), spttb_gui.PanelRight)
 					var command_out bytes.Buffer
 					command_cmd := "ffmpeg"
 					command_args := []string{"-i", track.Image, "-q:v", "1", "-n", track.FilenameArtwork()}
@@ -490,9 +492,16 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 	}
 
 	if (track.Local && *arg_flush_metadata) || !track.Local {
-		var track_artwork_reader, track_artwork_err = ioutil.ReadFile(track.FilenameArtwork())
-		if track_artwork_err != nil {
-			gui.WarnAppend(fmt.Sprintf("Unable to read artwork file: %s", track_artwork_err.Error()), spttb_gui.PanelRight)
+		var (
+			track_artwork_reader []byte
+			track_artwork_err    error
+		)
+		if spttb_system.FileExists(track.FilenameArtwork()) && (!*arg_flush_missing ||
+			(*arg_flush_missing && !track.HasID3Frame(spttb_track.ID3FrameArtwork))) {
+			track_artwork_reader, track_artwork_err = ioutil.ReadFile(track.FilenameArtwork())
+			if track_artwork_err != nil {
+				gui.WarnAppend(fmt.Sprintf("Unable to read artwork file: %s", track_artwork_err.Error()), spttb_gui.PanelRight)
+			}
 		}
 
 		track_mp3, err := id3.Open(track.FilenameTemporary(), id3.Options{Parse: true})
@@ -503,29 +512,42 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 			if !*arg_flush_missing {
 				track_mp3.DeleteAllFrames()
 			}
-			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameTitle) {
+			if len(track.Title) > 0 && (!*arg_flush_missing ||
+				(*arg_flush_missing && !spttb_track.TagHasFrame(track_mp3, spttb_track.ID3FrameTitle))) {
+				gui.DebugAppend("Inflating title metadata...", spttb_gui.PanelRight)
 				track_mp3.SetTitle(track.Title)
 			}
-			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameArtist) {
+			if len(track.Artist) > 0 && (!*arg_flush_missing ||
+				(*arg_flush_missing && !spttb_track.TagHasFrame(track_mp3, spttb_track.ID3FrameArtist))) {
+				gui.DebugAppend("Inflating artist metadata...", spttb_gui.PanelRight)
 				track_mp3.SetArtist(track.Artist)
 			}
-			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameAlbum) {
+			if len(track.Album) > 0 && (!*arg_flush_missing ||
+				(*arg_flush_missing && !spttb_track.TagHasFrame(track_mp3, spttb_track.ID3FrameAlbum))) {
+				gui.DebugAppend("Inflating album metadata...", spttb_gui.PanelRight)
 				track_mp3.SetAlbum(track.Album)
 			}
-			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameGenre) {
+			if len(track.Genre) > 0 && (!*arg_flush_missing ||
+				(*arg_flush_missing && !spttb_track.TagHasFrame(track_mp3, spttb_track.ID3FrameGenre))) {
+				gui.DebugAppend("Inflating genre metadata...", spttb_gui.PanelRight)
 				track_mp3.SetGenre(track.Genre)
 			}
-			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameYear) {
+			if len(track.Year) > 0 && (!*arg_flush_missing ||
+				(*arg_flush_missing && !spttb_track.TagHasFrame(track_mp3, spttb_track.ID3FrameYear))) {
+				gui.DebugAppend("Inflating year metadata...", spttb_gui.PanelRight)
 				track_mp3.SetYear(track.Year)
 			}
-			if !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameTrackNumber) {
+			if track.TrackNumber > 0 && (!*arg_flush_missing ||
+				(*arg_flush_missing && !spttb_track.TagHasFrame(track_mp3, spttb_track.ID3FrameTrackNumber))) {
+				gui.DebugAppend("Inflating track number metadata...", spttb_gui.PanelRight)
 				track_mp3.AddFrame(track_mp3.CommonID("Track number/Position in set"),
 					id3.TextFrame{
 						Encoding: id3.EncodingUTF8,
 						Text:     strconv.Itoa(track.TrackNumber),
 					})
 			}
-			if track_artwork_err == nil && (!*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameArtwork)) {
+			if track_artwork_err == nil && (!*arg_flush_missing ||
+				(*arg_flush_missing && !spttb_track.TagHasFrame(track_mp3, spttb_track.ID3FrameArtwork))) {
 				gui.DebugAppend("Inflating artwork metadata...", spttb_gui.PanelRight)
 				track_mp3.AddAttachedPicture(id3.PictureFrame{
 					Encoding:    id3.EncodingUTF8,
@@ -535,7 +557,8 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 					Picture:     track_artwork_reader,
 				})
 			}
-			if len(track.URL) > 0 && (!*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameYouTubeURL)) {
+			if len(track.URL) > 0 && (!*arg_flush_missing ||
+				(*arg_flush_missing && !spttb_track.TagHasFrame(track_mp3, spttb_track.ID3FrameYouTubeURL))) {
 				gui.DebugAppend("Inflating youtube origin url metadata...", spttb_gui.PanelRight)
 				track_mp3.AddCommentFrame(id3.CommentFrame{
 					Encoding:    id3.EncodingUTF8,
@@ -544,7 +567,8 @@ func ParallelSongProcess(track spttb_track.Track, wg *sync.WaitGroup) {
 					Text:        track.URL,
 				})
 			}
-			if len(track.Lyrics) > 0 && !*arg_flush_missing || spttb_track.TagHasFrame(track_mp3, ID3FrameLyrics) {
+			if len(track.Lyrics) > 0 && !*arg_disable_lyrics &&
+				(!*arg_flush_missing || (*arg_flush_missing && !spttb_track.TagHasFrame(track_mp3, spttb_track.ID3FrameLyrics))) {
 				gui.DebugAppend("Inflating lyrics metadata...", spttb_gui.PanelRight)
 				track_mp3.AddUnsynchronisedLyricsFrame(id3.UnsynchronisedLyricsFrame{
 					Encoding:          id3.EncodingUTF8,

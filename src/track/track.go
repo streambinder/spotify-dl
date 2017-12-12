@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -266,17 +267,17 @@ func (track Track) SeemsByWordMatch(sequence string) error {
 
 func TagGetFrame(tag *id3v2.Tag, frame int) string {
 	if frame == ID3FrameTitle {
-		return file.Title()
+		return tag.Title()
 	} else if frame == ID3FrameArtist {
-		return file.Artist()
+		return tag.Artist()
 	} else if frame == ID3FrameAlbum {
-		return file.Album()
+		return tag.Album()
 	} else if frame == ID3FrameGenre {
-		return file.Genre()
+		return tag.Genre()
 	} else if frame == ID3FrameYear {
-		return file.Year()
+		return tag.Year()
 	} else if frame == ID3FrameTrackNumber &&
-		len(file.GetFrames(file.CommonID("Track number/Position in set"))) > 0 {
+		len(tag.GetFrames(tag.CommonID("Track number/Position in set"))) > 0 {
 		for _, frame_text := range tag.GetFrames(tag.CommonID("Track number/Position in set")) {
 			text, ok := frame_text.(id3v2.TextFrame)
 			if ok {
@@ -284,11 +285,11 @@ func TagGetFrame(tag *id3v2.Tag, frame int) string {
 			}
 		}
 	} else if frame == ID3FrameGenre {
-		return file.Genre()
+		return tag.Genre()
 	} else if frame == ID3FrameYear {
-		return file.Year()
+		return tag.Year()
 	} else if frame == ID3FrameArtwork &&
-		len(file.GetFrames(file.CommonID("Attached picture"))) > 0 {
+		len(tag.GetFrames(tag.CommonID("Attached picture"))) > 0 {
 		for _, frame_picture := range tag.GetFrames(tag.CommonID("Attached picture")) {
 			picture, ok := frame_picture.(id3v2.PictureFrame)
 			if ok {
@@ -296,7 +297,7 @@ func TagGetFrame(tag *id3v2.Tag, frame int) string {
 			}
 		}
 	} else if frame == ID3FrameLyrics &&
-		len(file.GetFrames(file.CommonID("Unsynchronised lyrics/text transcription"))) > 0 {
+		len(tag.GetFrames(tag.CommonID("Unsynchronised lyrics/text transcription"))) > 0 {
 		for _, frame_lyrics := range tag.GetFrames(tag.CommonID("Unsynchronised lyrics/text transcription")) {
 			lyrics, ok := frame_lyrics.(id3v2.UnsynchronisedLyricsFrame)
 			if ok {
@@ -304,11 +305,11 @@ func TagGetFrame(tag *id3v2.Tag, frame int) string {
 			}
 		}
 	} else if frame == ID3FrameYouTubeURL &&
-		len(file.GetFrames(file.CommonID("Comments"))) > 0 {
-		for _, frame_comment := range file.GetFrames(tag.CommonID("Comments")) {
+		len(tag.GetFrames(tag.CommonID("Comments"))) > 0 {
+		for _, frame_comment := range tag.GetFrames(tag.CommonID("Comments")) {
 			comment, ok := frame_comment.(id3v2.CommentFrame)
 			if ok && comment.Description == "youtube" {
-				comment.Text
+				return comment.Text
 			}
 		}
 	}
@@ -321,10 +322,10 @@ func TagHasFrame(tag *id3v2.Tag, frame int) bool {
 
 func (track Track) GetID3Frame(frame int) string {
 	tag, err := id3v2.Open(track.FilenameFinal(), id3v2.Options{Parse: true})
-	if tag == nil || tag != nil {
+	if tag == nil || err != nil {
 		return ""
 	}
-	defer file.Close()
+	defer tag.Close()
 	return TagGetFrame(tag, frame)
 }
 
@@ -340,7 +341,7 @@ func (track *Track) SearchLyrics() error {
 		Timeout: time.Second * spttb_system.DEFAULT_HTTP_TIMEOUT,
 	}
 	lyrics_request, lyrics_error := http.NewRequest(http.MethodGet,
-		fmt.Sprintf(spttb_system.LYRICS_API_URL, track.Artist, track.Song), nil)
+		fmt.Sprintf(spttb_system.LYRICS_API_URL, url.QueryEscape(track.Artist), url.QueryEscape(track.Song)), nil)
 	if lyrics_error != nil {
 		return errors.New("Unable to compile lyrics request: " + lyrics_error.Error())
 	}
