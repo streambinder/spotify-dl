@@ -7,7 +7,7 @@ VERSION := $(shell awk -F'= ' '/VERSION / {print $$2}' src/system/constants.go)
 CUR_DIR = $(shell pwd)
 
 include Makefile.gobuild
-include Makefile.gobuild
+include Makefile.packaging
 
 BINARIES = \
 	main
@@ -51,8 +51,6 @@ x86: GOARCH=386
 x86: all
 
 x64: all
-
-release: packages unpackage
 
 clean:
 	@ ( \

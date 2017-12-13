@@ -7,55 +7,58 @@ create_out:
 
 package_rpm: create_out
 	@ ( \
-		cp package/rpm/spotitube.spec{,.orig}; \
-		sed -i 's/:VERSION:/$(VERSION)/g' package/rpm/spotitube.spec; \
+		cp assets/packaging/rpm/spotitube.spec{,.orig}; \
+		sed -i 's/:VERSION:/$(VERSION)/g' assets/packaging/rpm/spotitube.spec; \
 		make x86; \
-		rpmbuild -ba --target=i386 package/rpm/spotitube.spec; \
+		rpmbuild -ba --target=i386 assets/packaging/rpm/spotitube.spec; \
 		mv ~/rpmbuild/RPMS/i386/*.rpm out/spotitube_v$(VERSION)_x86.rpm; \
 		make x64; \
-		rpmbuild -ba --target=x86_64 package/rpm/spotitube.spec; \
+		rpmbuild -ba --target=x86_64 assets/packaging/rpm/spotitube.spec; \
 		mv ~/rpmbuild/RPMS/x86_64/*.rpm out/spotitube_v$(VERSION)_x64.rpm; \
 		rm -rf ~/rpmbuild; \
-		rm -f package/rpm/spotitube.spec; \
-		mv package/rpm/spotitube.spec{.orig,}; \
+		rm -f assets/packaging/rpm/spotitube.spec; \
+		mv assets/packaging/rpm/spotitube.spec{.orig,}; \
 	);
 
 package_deb: create_out
 	@ ( \
-		cp package/deb/DEBIAN/control{,.orig}; \
-		sed -i 's/:VERSION:/$(VERSION)/g' package/deb/DEBIAN/control; \
+		cp assets/packaging/deb/DEBIAN/control{,.orig}; \
+		sed -i 's/:VERSION:/$(VERSION)/g' assets/packaging/deb/DEBIAN/control; \
+        sed -i 's/:ARCH:/i386/g' assets/packaging/deb/DEBIAN/control; \
 		make x86; \
-		cd package/deb; \
+		cd assets/packaging/deb; \
 		mkdir -p usr/sbin; \
-		cp ../../bin/spotitube usr/sbin/; \
-		dpkg-deb --build . ../../out/spotitube_v$(VERSION)_x86.deb; \
+		cp ../../../bin/spotitube usr/sbin/; \
+		dpkg-deb --build . ../../../out/spotitube_v$(VERSION)_x86.deb; \
 		rm -f usr/sbin/*; \
-		cd ../..; \
+		cd ../../..; \
+        sed -i 's/i386/amd64/g' assets/packaging/deb/DEBIAN/control; \
 		make x64; \
-		cd package/deb; \
-		cp ../../bin/spotitube usr/sbin/; \
-		dpkg-deb --build . ../../out/spotitube_v$(VERSION)_x64.deb; \
-		cd ../..; \
-		rm -rf package/deb/usr; \
-		rm -f package/deb/DEBIAN/control; \
-		mv package/deb/DEBIAN/control{.orig,}; \
+		cd assets/packaging/deb; \
+		cp ../../../bin/spotitube usr/sbin/; \
+		dpkg-deb --build . ../../../out/spotitube_v$(VERSION)_x64.deb; \
+		cd ../../..; \
+		rm -rf assets/packaging/deb/usr; \
+		rm -f assets/packaging/deb/DEBIAN/control; \
+		mv assets/packaging/deb/DEBIAN/control{.orig,}; \
+		rm -f usr/sbin/*; \
 	);
 
 package_eopkg: create_out
 	@ ( \
 		sudo solbuild update; \
-		cp package/eopkg/pspec.xml{,.orig}; \
-		sed -i 's/:VERSION:/$(VERSION)/g' package/eopkg/pspec.xml; \
+		cp assets/packaging/eopkg/pspec.xml{,.orig}; \
+		sed -i 's/:VERSION:/$(VERSION)/g' assets/packaging/eopkg/pspec.xml; \
 		make x86; \
-		cp bin/spotitube package/eopkg/files/; \
-		sudo solbuild build package/eopkg/pspec.xml; \
+		cp bin/spotitube assets/packaging/eopkg/files/; \
+		sudo solbuild build assets/packaging/eopkg/pspec.xml; \
 		mv spotitube-*.eopkg out/spotitube_v$(VERSION)_x86.eopkg; \
 		make x64; \
-		sudo solbuild build package/eopkg/pspec.xml; \
+		sudo solbuild build assets/packaging/eopkg/pspec.xml; \
 		mv spotitube-*.eopkg out/spotitube_v$(VERSION)_x64.eopkg; \
-		rm -f package/eopkg/pspec.xml; \
-		mv package/eopkg/pspec.xml{.orig,}; \
-		rm -f package/eopkg/files/spotitube; \
+		rm -f assets/packaging/eopkg/pspec.xml; \
+		mv assets/packaging/eopkg/pspec.xml{.orig,}; \
+		rm -f assets/packaging/eopkg/files/spotitube; \
 	);
 
 package_snap: create_out
@@ -69,3 +72,5 @@ unpackage: create_out
 	);
 
 packages: package_rpm package_deb package_eopkg package_snap
+
+release: packages unpackage
