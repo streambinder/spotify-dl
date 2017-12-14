@@ -39,7 +39,7 @@ const (
 	SPOTIFY_CLIENT_ID                 = "d84f9faa18a84162ad6c73697990386c"
 	SPOTIFY_CLIENT_SECRET             = "8f40647775b8401a866e69e3f0044bf7"
 	SPOTIFY_REDIRECT_URI              = "http://localhost:8080/callback"
-	SPOTIFY_FAVICON_URL               = "https://raw.githubusercontent.com/streambinder/spotitube/master/assets/spotify.ico"
+	SPOTIFY_FAVICON_URL               = "https://raw.githubusercontent.com/streambinder/spotitube/master/assets/images/spotify.ico"
 	SPOTIFY_HTML_AUTOCLOSE_TIMEOUT    = "5"                                    // s
 	SPOTIFY_HTML_AUTOCLOSE_TIMEOUT_MS = SPOTIFY_HTML_AUTOCLOSE_TIMEOUT + "000" // ms
 	SPOTIFY_HTML_SIG_AUTHOR           = "streambinder"
