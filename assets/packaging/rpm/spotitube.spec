@@ -18,7 +18,7 @@ exit 0
 
 %install
 install --directory $RPM_BUILD_ROOT/usr/sbin
-install -m 0755 %(pwd)/bin/spotitube $RPM_BUILD_ROOT/usr/sbin
+install -m 0755 :BINARY: $RPM_BUILD_ROOT/usr/sbin
 
 %clean
 rm -rf $RPM_BUILD_ROOT

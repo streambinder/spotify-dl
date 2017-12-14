@@ -1,76 +1,52 @@
 CUR_DIR = $(shell pwd)
 
-create_out:
-	@ ( \
-		mkdir -p out \
-	);
-
-package_rpm: create_out
+pkg_rpm: bin
 	@ ( \
 		cp assets/packaging/rpm/spotitube.spec{,.orig}; \
-		sed -i 's/:VERSION:/$(VERSION)/g' assets/packaging/rpm/spotitube.spec; \
-		make x86; \
+		sed -i 's|:VERSION:|$(VERSION)|g' assets/packaging/rpm/spotitube.spec; \
+        sed -i 's|:BINARY:|$(BINARY)|g' assets/packaging/rpm/spotitube.spec; \
 		rpmbuild -ba --target=i386 assets/packaging/rpm/spotitube.spec; \
-		mv ~/rpmbuild/RPMS/i386/*.rpm out/spotitube_v$(VERSION)_x86.rpm; \
-		make x64; \
-		rpmbuild -ba --target=x86_64 assets/packaging/rpm/spotitube.spec; \
-		mv ~/rpmbuild/RPMS/x86_64/*.rpm out/spotitube_v$(VERSION)_x64.rpm; \
+		mv ~/rpmbuild/RPMS/i386/*.rpm $(PKG_NAME).rpm; \
 		rm -rf ~/rpmbuild; \
 		rm -f assets/packaging/rpm/spotitube.spec; \
 		mv assets/packaging/rpm/spotitube.spec{.orig,}; \
 	);
 
-package_deb: create_out
+pkg_deb: bin
 	@ ( \
 		cp assets/packaging/deb/DEBIAN/control{,.orig}; \
-		sed -i 's/:VERSION:/$(VERSION)/g' assets/packaging/deb/DEBIAN/control; \
-        sed -i 's/:ARCH:/i386/g' assets/packaging/deb/DEBIAN/control; \
-		make x86; \
+		sed -i 's|:VERSION:|$(VERSION)|g' assets/packaging/deb/DEBIAN/control; \
+        sed -i 's|:BINARY:|$(BINARY)|g' assets/packaging/deb/DEBIAN/control; \
 		cd assets/packaging/deb; \
 		mkdir -p usr/sbin; \
-		cp ../../../bin/spotitube usr/sbin/; \
-		dpkg-deb --build . ../../../out/spotitube_v$(VERSION)_x86.deb; \
+		cp $(BINARY) usr/sbin/; \
+		dpkg-deb --build . $(PKG_NAME).deb; \
 		rm -f usr/sbin/*; \
-		cd ../../..; \
-        sed -i 's/i386/amd64/g' assets/packaging/deb/DEBIAN/control; \
-		make x64; \
-		cd assets/packaging/deb; \
-		cp ../../../bin/spotitube usr/sbin/; \
-		dpkg-deb --build . ../../../out/spotitube_v$(VERSION)_x64.deb; \
 		cd ../../..; \
 		rm -rf assets/packaging/deb/usr; \
 		rm -f assets/packaging/deb/DEBIAN/control; \
 		mv assets/packaging/deb/DEBIAN/control{.orig,}; \
-		rm -f usr/sbin/*; \
 	);
 
-package_eopkg: create_out
+pkg_eopkg: bin
 	@ ( \
 		sudo solbuild update; \
 		cp assets/packaging/eopkg/pspec.xml{,.orig}; \
-		sed -i 's/:VERSION:/$(VERSION)/g' assets/packaging/eopkg/pspec.xml; \
-		make x86; \
-		cp bin/spotitube assets/packaging/eopkg/files/; \
+		sed -i 's|:VERSION:|$(VERSION)|g' assets/packaging/eopkg/pspec.xml; \
+        sed -i 's|:BINARY:|$(BINARY)|g' assets/packaging/eopkg/pspec.xml; \
+		cp $(BINARY) assets/packaging/eopkg/files/; \
 		sudo solbuild build assets/packaging/eopkg/pspec.xml; \
-		mv spotitube-*.eopkg out/spotitube_v$(VERSION)_x86.eopkg; \
-		make x64; \
-		sudo solbuild build assets/packaging/eopkg/pspec.xml; \
-		mv spotitube-*.eopkg out/spotitube_v$(VERSION)_x64.eopkg; \
+		mv spotitube-*.eopkg $(PKG_NAME).eopkg; \
 		rm -f assets/packaging/eopkg/pspec.xml; \
 		mv assets/packaging/eopkg/pspec.xml{.orig,}; \
 		rm -f assets/packaging/eopkg/files/spotitube; \
 	);
 
-package_snap: create_out
+pkg_snap: bin
 
-unpackage: create_out
+pkg_bin: bin
 	@ ( \
-		make x86; \
-		mv bin/spotitube out/spotitube_v$(VERSION)_x86.bin; \
-		make x64; \
-		mv bin/spotitube out/spotitube_v$(VERSION)_x64.bin; \
+		cp $(BINARY) $(PKG_NAME).bin; \
 	);
 
-packages: package_rpm package_deb package_eopkg package_snap
-
-release: packages unpackage
+release: pkg_rpm pkg_deb pkg_eopkg pkg_snap pkg_bin

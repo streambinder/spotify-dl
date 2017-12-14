@@ -1,20 +1,22 @@
 CUR_DIR = $(shell pwd)
 
-%.statbin:
+bin:
 	@ ( \
-		echo "Building up for $(GOARCH) arch..."; \
-		GOPATH=$(CUR_DIR) CGO_ENABLED=0 go build -o $(CUR_DIR)/bin/$(NAME) $(subst .statbin,,$@) && echo "Done."; \
+        echo -en "Building...\r"; \
+		GOPATH=$(CUR_DIR) GOARCH=386 CGO_ENABLED=0 go build -o $(BINARY) $(CUR_DIR)/src/main/main.go && \
+        echo -e "\rBuilt at: $(BINARY)"; \
 	);
 
-%.compliant:
+deps:
 	@ ( \
-		cd "$(PROJECT_ROOT)/$(subst .compliant,,$@)" >/dev/null || exit 1; \
-		go fmt || exit 1; \
-		GOPATH=$(CUR_DIR)/ golint || exit 1; \
-		GOPATH=$(CUR_DIR)/ go vet || exit 1; \
+		regex_domain='(([a-zA-Z](-?[a-zA-Z0-9])*)\.)*[a-zA-Z](-?[a-zA-Z0-9])+\.[a-zA-Z]{2,}'; \
+		find src -type f  \
+			| egrep -v 'src\/'$$regex_domain'' \
+			| xargs egrep '\"'$$regex_domain'\/.*\/.*\"' \
+			| awk '{ print $$NF }' | grep -v ^$$ | sort -u | sed 's/"//g' | while read dep; do \
+			if [ ! -d $(CUR_DIR)/src/$$dep ]; then \
+				echo "Fetching $$dep dependency..."; \
+			fi; \
+			GOPATH=$(CUR_DIR)/ go get $$dep || exit 1; \
+		done; \
 	);
-
-%.test:
-	GOPATH=$(CUR_DIR) go test $(subst .test,,$@)
-
-check: $(GO_TESTS)

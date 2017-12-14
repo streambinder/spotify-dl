@@ -1,7 +1,7 @@
 Package: spotitube
-Version: :VERSION:.00.00
+Version: :VERSION:
 Maintainer: Davide Pucci <posta@davidepucci.it>
 Priority: optional
-Architecture: :ARCH:
+Architecture: all
 Description: Shell go-lang application to incrementally download from Spotify into local folder.
 Depends: ffmpeg, youtube-dl
