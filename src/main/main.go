@@ -398,7 +398,7 @@ func main() {
 				track := tracks[track_index]
 				if spttb_system.FileExists(track.FilenameFinal()) {
 					playlist_m3u = playlist_m3u + "#EXTINF:" + strconv.Itoa(track.Duration) + "," + track.Filename + "\n" +
-						track.FilenameFinal() + "\n"
+						"./" + track.FilenameFinal() + "\n"
 				}
 			}
 			playlist_m3u_file, playlist_err := os.Create(playlist_info.Name + ".m3u")
