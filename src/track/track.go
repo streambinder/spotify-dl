@@ -377,7 +377,7 @@ func SeemsType(sequence string, song_type int) bool {
 	} else if song_type == SongTypeAcoustic {
 		song_type_aliases = []string{"acoustic"}
 	} else if song_type == SongTypeKaraoke {
-		song_type_aliases = []string{"karaoke"}
+		song_type_aliases = []string{"karaoke", "instrumental"}
 	} else if song_type == SongTypeParody {
 		song_type_aliases = []string{"parody"}
 	}
