@@ -10,7 +10,7 @@ var (
 )
 
 const (
-	VERSION            = 11
+	VERSION            = 12
 	VERSION_REPOSITORY = "https://github.com/streambinder/spotitube"
 	VERSION_ORIGIN     = "https://api.github.com/repos/streambinder/spotitube/releases/latest"
 	VERSION_URL        = VERSION_REPOSITORY + "/releases/latest"
