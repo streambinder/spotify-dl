@@ -9,7 +9,7 @@
 		<License>GPLv2</License>
 		<Summary xml:lang="en">Shell go-lang application to incrementally download from Spotify into local folder.</Summary>
 		<Description xml:lang="en">Shell go-lang application to incrementally download from Spotify into local folder.</Description>
-		<Archive type="binary" sha1sum="d8bc745d39f24cf5778c6f8dc23319cf97f59730">https://raw.githubusercontent.com/streambinder/spotitube/master/assets/spotify.ico</Archive>
+		<Archive type="binary" sha1sum="d8bc745d39f24cf5778c6f8dc23319cf97f59730">https://raw.githubusercontent.com/streambinder/spotitube/master/assets/images/spotify.ico</Archive>
 		<AdditionalFiles>
 			<AdditionalFile owner="root" permission="0755" target="spotitube">spotitube</AdditionalFile>
 		</AdditionalFiles>

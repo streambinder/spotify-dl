@@ -4,7 +4,7 @@ pkg_rpm: bin
 	@ ( \
 		cp assets/packaging/rpm/spotitube.spec{,.orig}; \
 		sed -i 's|:VERSION:|$(VERSION)|g' assets/packaging/rpm/spotitube.spec; \
-        sed -i 's|:BINARY:|$(BINARY)|g' assets/packaging/rpm/spotitube.spec; \
+		sed -i 's|:BINARY:|$(BINARY)|g' assets/packaging/rpm/spotitube.spec; \
 		rpmbuild -ba --target=i386 assets/packaging/rpm/spotitube.spec; \
 		mv ~/rpmbuild/RPMS/i386/*.rpm $(PKG_NAME).rpm; \
 		rm -rf ~/rpmbuild; \
@@ -16,7 +16,7 @@ pkg_deb: bin
 	@ ( \
 		cp assets/packaging/deb/DEBIAN/control{,.orig}; \
 		sed -i 's|:VERSION:|$(VERSION)|g' assets/packaging/deb/DEBIAN/control; \
-        sed -i 's|:BINARY:|$(BINARY)|g' assets/packaging/deb/DEBIAN/control; \
+		sed -i 's|:BINARY:|$(BINARY)|g' assets/packaging/deb/DEBIAN/control; \
 		cd assets/packaging/deb; \
 		mkdir -p usr/sbin; \
 		cp $(BINARY) usr/sbin/; \
@@ -33,7 +33,7 @@ pkg_eopkg: bin
 		sudo solbuild update; \
 		cp assets/packaging/eopkg/pspec.xml{,.orig}; \
 		sed -i 's|:VERSION:|$(VERSION)|g' assets/packaging/eopkg/pspec.xml; \
-        sed -i 's|:BINARY:|$(BINARY)|g' assets/packaging/eopkg/pspec.xml; \
+		sed -i 's|:BINARY:|$(BINARY)|g' assets/packaging/eopkg/pspec.xml; \
 		cp $(BINARY) assets/packaging/eopkg/files/; \
 		sudo solbuild build assets/packaging/eopkg/pspec.xml; \
 		mv spotitube-*.eopkg $(PKG_NAME).eopkg; \
