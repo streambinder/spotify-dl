@@ -92,9 +92,16 @@ sudo make install
 ```bash
 # to download your music library
 spotitube -folder ~/Music
-# to download a specific $USERNAME accessible playlist
+# to download a specific $USERNAME accessible playlist via its URI
+# look below for more informations on how to get that URI
 spotitube -folder ~/Music -playlist spotify:user:$USERNAME:playlist:$PLAYLIST_ID
 ```
+
+#### How to pull out URI from playlist
+
+As some of users struggled to manage to have correct URI from a Spotify playlist, here's how you can get it:
+
+[![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/images/sample_playlist.png)](#)
 
 #### Additional flags
 
