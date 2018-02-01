@@ -1,4 +1,4 @@
-# SPOTITUBE
+# SPOTITUBE ![](https://img.shields.io/github/downloads/streambinder/spotitube/total.svg)
 
 [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/images/sample.gif)](#spotitube) [![](https://raw.githubusercontent.com/streambinder/spotitube/master/assets/images/sample_result.png)](#spotitube)
 
