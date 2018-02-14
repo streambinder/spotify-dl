@@ -96,19 +96,19 @@ func main() {
 	}
 
 	gui = spttb_gui.Build(*arg_debug)
-	gui.Append(fmt.Sprintf("Version: %d\nFolder: %s", spttb_system.VERSION, *arg_folder), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("Version: %d\nFolder: %s", spttb_system.VERSION, *arg_folder), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
 	if *arg_log {
-		gui.Append(fmt.Sprintf("Log filename: %s", spttb_system.DEFAULT_LOG_PATH), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
+		gui.Append(fmt.Sprintf("Log filename: %s", spttb_system.DEFAULT_LOG_PATH), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
 
 	}
-	gui.Append(fmt.Sprintf("Date: %s", time.Now().Format("2006-01-02 15:04:05")), spttb_gui.PanelLeftBottom, spttb_gui.OrientationCenter)
-	gui.Append(fmt.Sprintf("URL: %s", spttb_system.VERSION_REPOSITORY), spttb_gui.PanelLeftBottom, spttb_gui.OrientationCenter)
-	gui.Append(fmt.Sprintf("License: GPLv2"), spttb_gui.PanelLeftBottom, spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("Date: %s", time.Now().Format("2006-01-02 15:04:05")), spttb_gui.PanelLeftBottom|spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("URL: %s", spttb_system.VERSION_REPOSITORY), spttb_gui.PanelLeftBottom|spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("License: GPLv2"), spttb_gui.PanelLeftBottom|spttb_gui.OrientationCenter)
 
 	for _, command_name := range []string{"youtube-dl", "ffmpeg"} {
 		_, err := exec.LookPath(command_name)
 		if err != nil {
-			gui.Prompt(fmt.Sprintf("Are you sure %s is actually installed?", command_name), spttb_gui.PromptDismissableWithExit)
+			gui.Prompt(fmt.Sprintf("Are you sure %s is asctually installed?", command_name), spttb_gui.PromptDismissableWithExit)
 		}
 	}
 
@@ -179,7 +179,7 @@ func main() {
 	}()
 
 	spotify_auth_url := spttb_spotify.AuthUrl()
-	gui.Append(fmt.Sprintf("Authentication URL: %s", spotify_auth_url), spttb_gui.PanelRight, spttb_gui.OptionNil, spttb_gui.OptionNil, spttb_gui.OptionNil, spttb_gui.ParagraphStyleAutoReturn)
+	gui.Append(fmt.Sprintf("Authentication URL: %s", spotify_auth_url), spttb_gui.PanelRight|spttb_gui.ParagraphStyleAutoReturn)
 	gui.DebugAppend("Waiting for automatic login process. If wait is too long, manually open that URL.", spttb_gui.PanelRight)
 	if !spotify_client.Auth(spotify_auth_url) {
 		gui.Prompt("Unable to authenticate to spotify.", spttb_gui.PromptDismissableWithExit)
@@ -204,8 +204,8 @@ func main() {
 		if playlist_err != nil {
 			gui.Prompt("Something went wrong while fetching playlist info.", spttb_gui.PromptDismissableWithExit)
 		} else {
-			gui.Append(fmt.Sprintf("Playlist name: %s", playlist_info.Name), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
-			gui.Append(fmt.Sprintf("Playlist owner: %s", playlist_info.Owner.DisplayName), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
+			gui.Append(fmt.Sprintf("Playlist name: %s", playlist_info.Name), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
+			gui.Append(fmt.Sprintf("Playlist owner: %s", playlist_info.Owner.DisplayName), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
 			gui.Append(fmt.Sprintf("Getting songs from \"%s\" playlist, by \"%s\"...", playlist_info.Name, playlist_info.Owner.DisplayName), spttb_gui.PanelRight)
 			if tracks_online, tracks_err = spotify_client.PlaylistTracks(*arg_playlist); tracks_err != nil {
 				gui.Prompt(fmt.Sprintf("Something went wrong while fetching playlist: %s.", tracks_err.Error()), spttb_gui.PromptDismissableWithExit)
@@ -231,10 +231,10 @@ func main() {
 		}
 	}
 
-	gui.Append(fmt.Sprintf("Songs online: %d", len(tracks)), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
-	gui.Append(fmt.Sprintf("Songs offline: %d", tracks.CountOffline()), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
-	gui.Append(fmt.Sprintf("Songs missing: %d", tracks.CountOnline()), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
-	gui.Append(fmt.Sprintf("Duplicates: %d", tracks_duplicates), spttb_gui.PanelLeftTop, spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("Songs online: %d", len(tracks)), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("Songs offline: %d", tracks.CountOffline()), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("Songs missing: %d", tracks.CountOnline()), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("Duplicates: %d", tracks_duplicates), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
 
 	if len(tracks) > 0 {
 		for range [spttb_system.CONCURRENCY_LIMIT]int{} {
@@ -288,7 +288,7 @@ func main() {
 						ans_input = gui.PromptInput(fmt.Sprintf("Do you want to download the following video for \"%s\"?\n"+
 							"ID: %s\nTitle: %s\nUser: %s\nDuration: %d\nURL: %s\n\n%s",
 							track.Filename, youtube_track.ID, youtube_track.Title, youtube_track.User,
-							youtube_track.Duration, youtube_track.URL, ans_automated_msg))
+							youtube_track.Duration, youtube_track.URL, ans_automated_msg), spttb_gui.OptionNil)
 					}
 					if (*arg_interactive && ans_input) || (!*arg_interactive && ans_automated) {
 						gui.Append(fmt.Sprintf("Video \"%s\" is good to go for \"%s\".", youtube_track.Title, track.Filename), spttb_gui.PanelRight)

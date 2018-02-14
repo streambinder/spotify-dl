@@ -14,22 +14,22 @@ import (
 )
 
 const (
-	OptionNil = -1
+	OptionNil = 1 << iota
 	_
-	// PromptNotDismissable = iota
-	PromptDismissable = iota
+	// PromptNotDismissable =  1 << iota
+	PromptDismissable
 	PromptDismissableWithExit
 	_
 
-	PanelLeftTop = iota
+	PanelLeftTop
 	PanelLeftBottom
 	PanelRight
 	_
-	OrientationLeft = iota
+	OrientationLeft
 	OrientationCenter
 	OrientationRight
 	_
-	FontColorBlack = iota
+	FontColorBlack
 	FontColorRed
 	FontColorGreen
 	FontColorYellow
@@ -38,14 +38,14 @@ const (
 	FontColorCyan
 	FontColorWhite
 	_
-	FontStyleBold = iota
+	FontStyleBold
 	FontStyleUnderline
 	FontStyleReverse
 	_
-	ParagraphStyleStandard = iota
+	ParagraphStyleStandard
 	ParagraphStyleAutoReturn
 	_
-	LogWrite = iota
+	LogWrite
 	LogNoWrite
 )
 
@@ -132,28 +132,82 @@ func Run() {
 	}
 }
 
-func (gui *Gui) Append(message string, panel int, options ...int) error {
+func (gui *Gui) Append(message string, options uint64) error {
 	gui_append_mutex.Lock()
 	defer gui_append_mutex.Unlock()
-	view, err := gui.View(Panels[panel])
+	var (
+		view  *gocui.View
+		err   error
+		panel uint64
+	)
+	if (options & PanelRight) != 0 {
+		panel = PanelRight
+	} else if (options & PanelLeftTop) != 0 {
+		panel = PanelLeftTop
+	} else if (options & PanelLeftBottom) != 0 {
+		panel = PanelLeftBottom
+	}
+	view, err = gui.View(Panels[int(panel)])
 	if err != nil {
 		return err
 	} else {
 		gui.Update(func(gui *gocui.Gui) error {
-			if len(options) > 3 && options[3] >= 0 {
+			if (options&ParagraphStyleStandard) != 0 ||
+				(options&ParagraphStyleAutoReturn) != 0 {
 				width, _ := view.Size()
-				message = MessageParagraphStyle(message, options[3], width)
+				if (options & ParagraphStyleStandard) != 0 {
+					message = MessageParagraphStyle(message, ParagraphStyleStandard, width)
+				} else if (options & ParagraphStyleAutoReturn) != 0 {
+					message = MessageParagraphStyle(message, ParagraphStyleAutoReturn, width)
+				}
 			}
-			if len(options) > 2 && options[2] >= 0 {
-				message = MessageStyle(message, options[2])
+			if (options&FontStyleBold) != 0 ||
+				(options&FontStyleUnderline) != 0 ||
+				(options&FontStyleReverse) != 0 {
+				if (options & FontStyleBold) != 0 {
+					message = MessageStyle(message, FontStyleBold)
+				} else if (options & FontStyleUnderline) != 0 {
+					message = MessageStyle(message, FontStyleUnderline)
+				} else if (options & FontStyleReverse) != 0 {
+					message = MessageStyle(message, FontStyleReverse)
+				}
 			}
-			if len(options) > 0 && options[0] >= 0 {
-				message = MessageOrientate(message, view, options[0])
-			} else {
-				message = MessageOrientate(message, view, OrientationLeft)
+			if (options&OrientationLeft) != 0 ||
+				(options&OrientationCenter) != 0 ||
+				(options&OrientationRight) != 0 {
+				if (options & OrientationLeft) != 0 {
+					message = MessageOrientate(message, view, OrientationLeft)
+				} else if (options & OrientationCenter) != 0 {
+					message = MessageOrientate(message, view, OrientationCenter)
+				} else if (options & OrientationRight) != 0 {
+					message = MessageOrientate(message, view, OrientationRight)
+				}
 			}
-			if len(options) > 1 && options[1] >= 0 {
-				message = MessageColor(message, options[1])
+			if (options&FontColorBlack) != 0 ||
+				(options&FontColorRed) != 0 ||
+				(options&FontColorGreen) != 0 ||
+				(options&FontColorYellow) != 0 ||
+				(options&FontColorBlue) != 0 ||
+				(options&FontColorMagenta) != 0 ||
+				(options&FontColorCyan) != 0 ||
+				(options&FontColorWhite) != 0 {
+				if (options & FontColorBlack) != 0 {
+					message = MessageColor(message, FontColorBlack)
+				} else if (options & FontColorRed) != 0 {
+					message = MessageColor(message, FontColorRed)
+				} else if (options & FontColorGreen) != 0 {
+					message = MessageColor(message, FontColorGreen)
+				} else if (options & FontColorYellow) != 0 {
+					message = MessageColor(message, FontColorYellow)
+				} else if (options & FontColorBlue) != 0 {
+					message = MessageColor(message, FontColorBlue)
+				} else if (options & FontColorMagenta) != 0 {
+					message = MessageColor(message, FontColorMagenta)
+				} else if (options & FontColorCyan) != 0 {
+					message = MessageColor(message, FontColorCyan)
+				} else if (options & FontColorWhite) != 0 {
+					message = MessageColor(message, FontColorWhite)
+				}
 			}
 			fmt.Fprintln(view, message)
 			return nil
@@ -162,53 +216,59 @@ func (gui *Gui) Append(message string, panel int, options ...int) error {
 	return nil
 }
 
-func (gui *Gui) ClearAppend(message string, panel int, options ...int) error {
-	view, err := gui.View(Panels[panel])
+func (gui *Gui) ClearAppend(message string, options uint64) error {
+	var (
+		view  *gocui.View
+		err   error
+		panel uint64
+	)
+	if (options & PanelRight) != 0 {
+		panel = PanelRight
+	} else if (options & PanelLeftTop) != 0 {
+		panel = PanelLeftTop
+	} else if (options & PanelLeftBottom) != 0 {
+		panel = PanelLeftBottom
+	}
+	view, err = gui.View(Panels[int(panel)])
 	if err != nil {
 		return err
 	} else {
 		view.Clear()
-		return gui.Append(message, panel, options...)
+		return gui.Append(message, options|panel)
 	}
 	return nil
 }
 
-func (gui *Gui) ErrAppend(message string, panel int, options ...int) error {
-	if (len(options) <= 4 || options[4] == LogWrite) && gui.Logger != nil {
+func (gui *Gui) ErrAppend(message string, options uint64) error {
+	if (options&LogWrite) != 0 && gui.Logger != nil {
 		gui.Logger.Append(fmt.Sprintf("[ERROR] %s", message))
 	}
-	options = ReplaceOptions(options, 1, FontColorRed)
-	options = ReplaceOptions(options, 3, ParagraphStyleAutoReturn)
-	return gui.Append(message, panel, options...)
+	return gui.Append(message, options|FontColorRed|ParagraphStyleAutoReturn)
 }
 
-func (gui *Gui) WarnAppend(message string, panel int, options ...int) error {
-	if (len(options) <= 4 || options[4] == LogWrite) && gui.Logger != nil {
+func (gui *Gui) WarnAppend(message string, options uint64) error {
+	if (options&LogWrite) != 0 && gui.Logger != nil {
 		gui.Logger.Append(fmt.Sprintf("[WARNING] %s", message))
 	}
-	options = ReplaceOptions(options, 1, FontColorYellow)
-	options = ReplaceOptions(options, 3, ParagraphStyleAutoReturn)
-	return gui.Append(message, panel, options...)
+	return gui.Append(message, options|FontColorYellow|ParagraphStyleAutoReturn)
 }
 
-func (gui *Gui) DebugAppend(message string, panel int, options ...int) error {
-	if (len(options) <= 4 || options[4] == LogWrite) && gui.Logger != nil {
+func (gui *Gui) DebugAppend(message string, options uint64) error {
+	if (options&LogWrite) != 0 && gui.Logger != nil {
 		gui.Logger.Append(fmt.Sprintf("[DEBUG] %s", message))
 	}
 	if !gui.Verbose {
 		return nil
 	} else {
-		options = ReplaceOptions(options, 1, FontColorMagenta)
-		options = ReplaceOptions(options, 3, ParagraphStyleAutoReturn)
-		return gui.Append(message, panel, options...)
+		return gui.Append(message, options|ParagraphStyleAutoReturn|FontColorMagenta)
 	}
 }
 
-func (gui *Gui) Prompt(message string, options ...int) error {
+func (gui *Gui) Prompt(message string, options uint64) error {
 	gui_prompt_mutex.Lock()
 	defer gui_prompt_mutex.Unlock()
 	gui_prompt_dismiss = make(chan bool)
-	if (len(options) <= 1 || options[1] == LogWrite) && gui.Logger != nil {
+	if (options&LogWrite) != 0 && gui.Logger != nil {
 		gui.Logger.Append(message)
 	}
 	gui.Update(func(gui *gocui.Gui) error {
@@ -224,10 +284,7 @@ func (gui *Gui) Prompt(message string, options ...int) error {
 				return err
 			}
 			fmt.Fprintln(view, message)
-			if len(options) == 0 {
-				options = append(options, PromptDismissable)
-			}
-			if options[0] == PromptDismissableWithExit {
+			if (options & PromptDismissableWithExit) != 0 {
 				gui.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, GuiDismissPromptAndClose)
 			} else {
 				gui.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, GuiDismissPrompt)
@@ -239,7 +296,7 @@ func (gui *Gui) Prompt(message string, options ...int) error {
 	return nil
 }
 
-func (gui *Gui) PromptInput(message string, options ...int) bool {
+func (gui *Gui) PromptInput(message string, options uint64) bool {
 	gui_prompt_mutex.Lock()
 	defer gui_prompt_mutex.Unlock()
 	gui_prompt_dismiss = make(chan bool)
@@ -272,7 +329,7 @@ func (gui *Gui) PromptInput(message string, options ...int) bool {
 	return <-gui_prompt_dismiss
 }
 
-func (gui *Gui) PromptInputMessage(message string, options ...int) string {
+func (gui *Gui) PromptInputMessage(message string, options uint64) string {
 	gui_prompt_mutex.Lock()
 	defer gui_prompt_mutex.Unlock()
 	gui_prompt_input = make(chan string)
@@ -377,20 +434,6 @@ func MessageParagraphStyle(message string, style_const int, width int) string {
 		return message_paragraph
 	}
 	return message
-}
-
-func ReplaceOptions(options []int, element_index int, element_value int) []int {
-	if len(options) > element_index {
-		options[element_index] = element_value
-	} else if len(options) == element_index {
-		options = append(options, element_value)
-	} else {
-		for i := len(options); i < element_index; i++ {
-			options = append(options, -1)
-		}
-		options = append(options, element_value)
-	}
-	return options
 }
 
 func GuiDismissPrompt(gui *gocui.Gui, view *gocui.View) error {
