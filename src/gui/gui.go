@@ -209,7 +209,7 @@ func (gui *Gui) Append(message string, options uint64) error {
 					message = MessageColor(message, FontColorWhite)
 				}
 			}
-			fmt.Fprintln(view, message)
+			fmt.Fprintln(view, " "+message)
 			return nil
 		})
 	}
@@ -368,6 +368,7 @@ func GuiSTDLayout(gui *gocui.Gui) error {
 		}
 		view.Autoscroll = true
 		view.Title = strings.ToUpper(" SpotiTube ")
+		fmt.Fprintln(view, "\n")
 	}
 	if view, err := gui.SetView("GuiPanelLeftBottom", 0, gui_max_height/2+1,
 		gui_max_width/3, gui_max_height-1); err != nil {
@@ -376,6 +377,7 @@ func GuiSTDLayout(gui *gocui.Gui) error {
 		}
 		view.Autoscroll = true
 		view.Title = strings.ToUpper(" Informations ")
+		fmt.Fprintln(view, "\n")
 	}
 	if view, err := gui.SetView("GuiPanelRight", gui_max_width/3+1, 0,
 		gui_max_width-1, gui_max_height-1); err != nil {
@@ -384,6 +386,7 @@ func GuiSTDLayout(gui *gocui.Gui) error {
 		}
 		view.Autoscroll = true
 		view.Title = strings.ToUpper(" Status ")
+		fmt.Fprintln(view, "\n")
 	}
 
 	return nil

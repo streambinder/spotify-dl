@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -96,19 +97,41 @@ func main() {
 	}
 
 	gui = spttb_gui.Build(*arg_debug)
-	gui.Append(fmt.Sprintf("Version: %d\nFolder: %s", spttb_system.VERSION, *arg_folder), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
-	if *arg_log {
-		gui.Append(fmt.Sprintf("Log filename: %s", spttb_system.DEFAULT_LOG_PATH), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
-
+	if user, err := user.Current(); err == nil {
+		*arg_folder = strings.Replace(*arg_folder, user.HomeDir, "~", -1)
 	}
-	gui.Append(fmt.Sprintf("Date: %s", time.Now().Format("2006-01-02 15:04:05")), spttb_gui.PanelLeftBottom|spttb_gui.OrientationCenter)
-	gui.Append(fmt.Sprintf("URL: %s", spttb_system.VERSION_REPOSITORY), spttb_gui.PanelLeftBottom|spttb_gui.OrientationCenter)
-	gui.Append(fmt.Sprintf("License: GPLv2"), spttb_gui.PanelLeftBottom|spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("%s %s", spttb_gui.MessageStyle("Folder:", spttb_gui.FontStyleBold), *arg_folder), spttb_gui.PanelLeftTop)
+	if *arg_log {
+		gui.Append(fmt.Sprintf("%s %s", spttb_gui.MessageStyle("Log:", spttb_gui.FontStyleBold), spttb_system.DEFAULT_LOG_PATH), spttb_gui.PanelLeftTop)
+	}
+	gui.Append(fmt.Sprintf("%s %d", spttb_gui.MessageStyle("Version:", spttb_gui.FontStyleBold), spttb_system.VERSION), spttb_gui.PanelLeftBottom)
+	gui.Append(fmt.Sprintf("%s %s", spttb_gui.MessageStyle("Date:", spttb_gui.FontStyleBold), time.Now().Format("2006-01-02 15:04:05")), spttb_gui.PanelLeftBottom)
+	gui.Append(fmt.Sprintf("%s %s", spttb_gui.MessageStyle("URL:", spttb_gui.FontStyleBold), spttb_system.VERSION_REPOSITORY), spttb_gui.PanelLeftBottom)
+	gui.Append(fmt.Sprintf("%s GPLv2", spttb_gui.MessageStyle("License:", spttb_gui.FontStyleBold)), spttb_gui.PanelLeftBottom)
 
 	for _, command_name := range []string{"youtube-dl", "ffmpeg"} {
 		_, err := exec.LookPath(command_name)
 		if err != nil {
 			gui.Prompt(fmt.Sprintf("Are you sure %s is asctually installed?", command_name), spttb_gui.PromptDismissableWithExit)
+		} else {
+			var (
+				command_out           bytes.Buffer
+				command_version_value string = "?"
+				command_version_regex string = "\\d+\\.\\d+\\.\\d+"
+			)
+			if version_regex, version_regex_err := regexp.Compile(command_version_regex); version_regex_err != nil {
+				command_version_value = "Regex compile failure"
+			} else {
+				command_obj := exec.Command(command_name, []string{"--version"}...)
+				fmt.Println(command_out.String())
+				command_obj.Stdout = &command_out
+				command_obj.Stderr = &command_out
+				_ = command_obj.Run()
+				if command_version_regvalue := version_regex.FindString(command_out.String()); len(command_version_regvalue) > 0 {
+					command_version_value = command_version_regvalue
+				}
+			}
+			gui.Append(fmt.Sprintf("%s %s", spttb_gui.MessageStyle(fmt.Sprintf("Version %s:", command_name), spttb_gui.FontStyleBold), command_version_value), spttb_gui.PanelLeftTop)
 		}
 	}
 
@@ -204,8 +227,8 @@ func main() {
 		if playlist_err != nil {
 			gui.Prompt("Something went wrong while fetching playlist info.", spttb_gui.PromptDismissableWithExit)
 		} else {
-			gui.Append(fmt.Sprintf("Playlist name: %s", playlist_info.Name), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
-			gui.Append(fmt.Sprintf("Playlist owner: %s", playlist_info.Owner.DisplayName), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
+			gui.Append(fmt.Sprintf("%s %s", spttb_gui.MessageStyle("Playlist name:", spttb_gui.FontStyleBold), playlist_info.Name), spttb_gui.PanelLeftTop)
+			gui.Append(fmt.Sprintf("%s %s", spttb_gui.MessageStyle("Playlist owner:", spttb_gui.FontStyleBold), playlist_info.Owner.DisplayName), spttb_gui.PanelLeftTop)
 			gui.Append(fmt.Sprintf("Getting songs from \"%s\" playlist, by \"%s\"...", playlist_info.Name, playlist_info.Owner.DisplayName), spttb_gui.PanelRight)
 			if tracks_online, tracks_err = spotify_client.PlaylistTracks(*arg_playlist); tracks_err != nil {
 				gui.Prompt(fmt.Sprintf("Something went wrong while fetching playlist: %s.", tracks_err.Error()), spttb_gui.PromptDismissableWithExit)
@@ -231,10 +254,10 @@ func main() {
 		}
 	}
 
-	gui.Append(fmt.Sprintf("Songs online: %d", len(tracks)), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
-	gui.Append(fmt.Sprintf("Songs offline: %d", tracks.CountOffline()), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
-	gui.Append(fmt.Sprintf("Songs missing: %d", tracks.CountOnline()), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
-	gui.Append(fmt.Sprintf("Duplicates: %d", tracks_duplicates), spttb_gui.PanelLeftTop|spttb_gui.OrientationCenter)
+	gui.Append(fmt.Sprintf("%s %d", spttb_gui.MessageStyle("Songs online:", spttb_gui.FontStyleBold), len(tracks)), spttb_gui.PanelLeftTop)
+	gui.Append(fmt.Sprintf("%s %d", spttb_gui.MessageStyle("Songs offline:", spttb_gui.FontStyleBold), tracks.CountOffline()), spttb_gui.PanelLeftTop)
+	gui.Append(fmt.Sprintf("%s %d", spttb_gui.MessageStyle("Songs missing:", spttb_gui.FontStyleBold), tracks.CountOnline()), spttb_gui.PanelLeftTop)
+	gui.Append(fmt.Sprintf("%s %d", spttb_gui.MessageStyle("Songs duplicates:", spttb_gui.FontStyleBold), tracks_duplicates), spttb_gui.PanelLeftTop)
 
 	if len(tracks) > 0 {
 		for range [spttb_system.CONCURRENCY_LIMIT]int{} {
