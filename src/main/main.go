@@ -260,6 +260,7 @@ func main() {
 	gui.Append(fmt.Sprintf("%s %d", spttb_gui.MessageStyle("Songs duplicates:", spttb_gui.FontStyleBold), tracks_duplicates), spttb_gui.PanelLeftTop)
 
 	if len(tracks) > 0 {
+		gui.LoadingSetMax(len(tracks))
 		for range [spttb_system.CONCURRENCY_LIMIT]int{} {
 			wait_group_pool <- true
 		}
@@ -272,6 +273,7 @@ func main() {
 			gui.Append(fmt.Sprintf("%d missing songs, %d ignored.", tracks.CountOnline(), tracks.CountOffline()), spttb_gui.PanelRight)
 		}
 		for track_index, track := range tracks {
+			gui.LoadingIncrease()
 			gui.Append(fmt.Sprintf("%d/%d: \"%s\"", track_index+1, len(tracks), track.Filename), spttb_gui.PanelRight)
 			if !track.Local || *arg_replace_local || *arg_simulate {
 				youtube_tracks, err := spttb_youtube.QueryTracks(&track)
@@ -448,6 +450,7 @@ func main() {
 		}
 		close(wait_group_pool)
 		wait_group.Wait()
+		gui.LoadingFill()
 		gui.Prompt("Synchronization completed.", spttb_gui.PromptDismissableWithExit)
 	} else {
 		gui.Prompt("No song needs to be downloaded.", spttb_gui.PromptDismissableWithExit)

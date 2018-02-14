@@ -24,6 +24,7 @@ const (
 	PanelLeftTop
 	PanelLeftBottom
 	PanelRight
+	PanelLoading
 	_
 	OrientationLeft
 	OrientationCenter
@@ -54,6 +55,7 @@ var (
 		PanelLeftTop:    "GuiPanelLeftTop",
 		PanelLeftBottom: "GuiPanelLeftBottom",
 		PanelRight:      "GuiPanelRight",
+		PanelLoading:    "GuiPanelLoading",
 	}
 	FontColors = map[int]color.Attribute{
 		FontColorBlack:   color.FgBlack,
@@ -72,8 +74,11 @@ var (
 	gui_ready          chan *gocui.Gui
 	gui_prompt_dismiss chan bool
 	gui_prompt_input   chan string
-	gui_append_mutex   sync.Mutex
 	gui_prompt_mutex   sync.Mutex
+	gui_append_mutex   sync.Mutex
+	gui_loading_max    int = 100
+	gui_loading_ctr    int
+	gui_loading_sprint = color.New(color.BgWhite).SprintFunc()(" ")
 
 	singleton *Gui
 )
@@ -371,7 +376,7 @@ func GuiSTDLayout(gui *gocui.Gui) error {
 		fmt.Fprintln(view, "\n")
 	}
 	if view, err := gui.SetView("GuiPanelLeftBottom", 0, gui_max_height/2+1,
-		gui_max_width/3, gui_max_height-1); err != nil {
+		gui_max_width/3, gui_max_height-4); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -380,7 +385,7 @@ func GuiSTDLayout(gui *gocui.Gui) error {
 		fmt.Fprintln(view, "\n")
 	}
 	if view, err := gui.SetView("GuiPanelRight", gui_max_width/3+1, 0,
-		gui_max_width-1, gui_max_height-1); err != nil {
+		gui_max_width-1, gui_max_height-4); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -388,7 +393,48 @@ func GuiSTDLayout(gui *gocui.Gui) error {
 		view.Title = strings.ToUpper(" Status ")
 		fmt.Fprintln(view, "\n")
 	}
+	if _, err := gui.SetView("GuiPanelLoading", 0, gui_max_height-3,
+		gui_max_width-1, gui_max_height-1); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+	}
+	return nil
+}
 
+func (gui *Gui) LoadingSetMax(max int) error {
+	gui_loading_max = max
+	return nil
+}
+
+func (gui *Gui) LoadingFill() error {
+	gui.Update(func(gui *gocui.Gui) error {
+		view, err := gui.View(Panels[PanelLoading])
+		if err != nil {
+			return err
+		} else {
+			max_width, _ := view.Size()
+			view.Clear()
+			fmt.Fprint(view, strings.Repeat(gui_loading_sprint, max_width))
+		}
+		return nil
+	})
+	return nil
+}
+
+func (gui *Gui) LoadingIncrease() error {
+	gui.Update(func(gui *gocui.Gui) error {
+		view, err := gui.View(Panels[PanelLoading])
+		if err != nil {
+			return err
+		} else {
+			max_width, _ := view.Size()
+			view.Clear()
+			fmt.Fprint(view, strings.Repeat(gui_loading_sprint, gui_loading_ctr*max_width/gui_loading_max))
+			gui_loading_ctr += 1
+		}
+		return nil
+	})
 	return nil
 }
 
