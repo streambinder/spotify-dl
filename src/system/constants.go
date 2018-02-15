@@ -36,8 +36,9 @@ const (
 	YOUTUBE_DURATION_TOLERANCE = 20 // second(s)
 	YOUTUBE_VIDEO_PREFIX       = "https://www.youtube.com"
 
-	SPOTIFY_CLIENT_ID                 = "d84f9faa18a84162ad6c73697990386c"
-	SPOTIFY_CLIENT_SECRET             = "8f40647775b8401a866e69e3f0044bf7"
+	SPOTIFY_CLIENT_ID     = ":SPOTIFY_CLIENT_ID:"
+	SPOTIFY_CLIENT_SECRET = ":SPOTIFY_CLIENT_SECRET:"
+
 	SPOTIFY_REDIRECT_URI              = "http://localhost:8080/callback"
 	SPOTIFY_FAVICON_URL               = "https://raw.githubusercontent.com/streambinder/spotitube/master/assets/images/spotify.ico"
 	SPOTIFY_HTML_AUTOCLOSE_TIMEOUT    = "5"                                    // s

@@ -2,9 +2,16 @@ CUR_DIR = $(shell pwd)
 
 bin:
 	@ ( \
-        echo -en "Building...\r"; \
+		if [ -z "$(SPOTIFY_ID)" -o -z "$(SPOTIFY_KEY)" ]; then \
+			echo "ERROR: SPOTIFY_ID and SPOTIFY_KEY environment variables need to be set."; exit 1; \
+		fi; \
+		echo -en "Building...\r"; \
+		cp $(CUR_DIR)/src/system/constants.go{,.orig} && \
+		sed -i 's|:SPOTIFY_CLIENT_ID:|${SPOTIFY_ID}|g' $(CUR_DIR)/src/system/constants.go && \
+		sed -i 's|:SPOTIFY_CLIENT_SECRET:|${SPOTIFY_KEY}|g' $(CUR_DIR)/src/system/constants.go && \
 		GOPATH=$(CUR_DIR) GOARCH=386 CGO_ENABLED=0 go build -o $(BINARY) $(CUR_DIR)/src/main/main.go && \
-        echo -e "\rBuilt at: $(BINARY)"; \
+		mv $(CUR_DIR)/src/system/constants.go{.orig,} && \
+		echo -e "\rBuilt at: $(BINARY)"; \
 	);
 
 deps:
