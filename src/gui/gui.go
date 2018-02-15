@@ -415,6 +415,7 @@ func (gui *Gui) LoadingFill() error {
 		} else {
 			max_width, _ := view.Size()
 			view.Clear()
+			view.Title = fmt.Sprintf(" 100 %% ")
 			fmt.Fprint(view, strings.Repeat(gui_loading_sprint, max_width))
 		}
 		return nil
@@ -430,6 +431,7 @@ func (gui *Gui) LoadingIncrease() error {
 		} else {
 			max_width, _ := view.Size()
 			view.Clear()
+			view.Title = fmt.Sprintf(" %d %% ", gui_loading_ctr*100/gui_loading_max)
 			fmt.Fprint(view, strings.Repeat(gui_loading_sprint, gui_loading_ctr*max_width/gui_loading_max))
 			gui_loading_ctr += 1
 		}
